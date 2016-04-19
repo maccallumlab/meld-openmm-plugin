@@ -20,7 +20,10 @@ void testDistRestSerialization() {
     // create MeldForce
     MeldForce force;
     int k = 1.0;
-    int restIdx = force.addDistanceRestraint(0, 1, 1.0, 2.0, 3.0, 4.0, k);
+    bool doing_eco = false;
+    float eco_factor = 1.0;
+    int res_index1, res_index2;
+    int restIdx = force.addDistanceRestraint(0, 1, 1.0, 2.0, 3.0, 4.0, k, doing_eco, eco_factor, res_index1, res_index2);
     std::vector<int> restIndices(1);
     restIndices[0] = restIdx;
     int groupIdx = force.addGroup(restIndices, 1);
@@ -41,8 +44,11 @@ void testDistRestSerialization() {
         float r1a, r2a, r3a, r4a, forceConstanta;
         int atom1b, atom2b, globalIndexb;
         float r1b, r2b, r3b, r4b, forceConstantb;
-        force.getDistanceRestraintParams(i, atom1a, atom2a, r1a, r2a, r3a, r4a, forceConstanta, globalIndexa);
-        force2.getDistanceRestraintParams(i, atom1b, atom2b, r1b, r2b, r3b, r4b, forceConstantb, globalIndexb);
+        bool doing_ecoa, doing_ecob;
+        float eco_factora, eco_factorb;
+        int res_index1a, res_index1b, res_index2a, res_index2b;
+        force.getDistanceRestraintParams(i, atom1a, atom2a, r1a, r2a, r3a, r4a, forceConstanta, doing_ecoa, eco_factora, res_index1a, res_index2a, globalIndexa);
+        force2.getDistanceRestraintParams(i, atom1b, atom2b, r1b, r2b, r3b, r4b, forceConstantb, doing_ecob, eco_factorb, res_index1b, res_index2b, globalIndexb);
         ASSERT_EQUAL(atom1a, atom1b);
         ASSERT_EQUAL(atom2a, atom2b);
         ASSERT_EQUAL(r1a, r1b);

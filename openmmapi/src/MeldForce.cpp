@@ -8,6 +8,8 @@
 #include "openmm/Force.h"
 #include "openmm/OpenMMException.h"
 #include <vector>
+#include <stdio.h>
+#include <iostream>
 
 using namespace MeldPlugin;
 using namespace OpenMM;
@@ -75,19 +77,42 @@ int MeldForce::getNumCollections() const {
 }
 
 
+int MeldForce::setEcoCutoff(float eco_cut_value) { // set the internal parameter for the ECO cutoff
+    eco_cut = eco_cut_value;
+    return 0;
+}
+
+int MeldForce::setAlphaCarbonVector(std::vector< int > alpha_carbon_vector) {
+    //alpha_carbons.reserve(alpha_carbon_vector.size()); // set the size of the global alpha carbon vector
+    //copy(alpha_carbon_vector.begin(), alpha_carbon_vector.end(), );
+    alpha_carbons.swap(alpha_carbon_vector);
+    return 0;
+}
+
 int MeldForce::addDistanceRestraint(int particle1, int particle2, float r1, float r2,
-                                    float r3, float r4, float force_constant) {
+                                    float r3, float r4, float force_constant, bool doing_eco, float eco_factor, int res_index1, int res_index2) {
+    cout << "doing_eco:" << doing_eco ;
+    cout << " eco_factor:" << eco_factor;
+    cout << " res_index1:" << res_index1;
+    cout << " res_index2:" << res_index2 << "\n";
+    cout << " eco cut (global):" << eco_cut << "\n";
+    for (int i = 0; i < alpha_carbons.size(); i++) {
+      cout << alpha_carbons[i] << " ";
+    }
+    cout << "\n";
     distanceRestraints.push_back(
-            DistanceRestraintInfo(particle1, particle2, r1, r2, r3, r4, force_constant, n_restraints));
+            DistanceRestraintInfo(particle1, particle2, r1, r2, r3, r4, force_constant, doing_eco, eco_factor, res_index1, res_index2, n_restraints));
     n_restraints++;
     return n_restraints - 1;
 }
 
 void MeldForce::modifyDistanceRestraint(int index, int particle1, int particle2, float r1, float r2,
-                                        float r3, float r4, float force_constant) {
+                                        float r3, float r4, float force_constant, bool doing_eco, float eco_factor, int res_index1, int res_index2) {
     int oldGlobal = distanceRestraints[index].global_index;
+    //printf ("LANE: Modifying Distance Restraint\n");
+    // print some info??
     distanceRestraints[index] =
-            DistanceRestraintInfo(particle1, particle2, r1, r2, r3, r4, force_constant, oldGlobal);
+            DistanceRestraintInfo(particle1, particle2, r1, r2, r3, r4, force_constant, doing_eco, eco_factor, res_index1, res_index2, oldGlobal);
 }
 
 int MeldForce::addHyperbolicDistanceRestraint(int particle1, int particle2, float r1, float r2,
@@ -192,7 +217,7 @@ ForceImpl* MeldForce::createImpl() const {
 
 
 void MeldForce::getDistanceRestraintParams(int index, int& atom1, int& atom2, float& r1, float& r2, float& r3,
-            float& r4, float& forceConstant, int& globalIndex) const {
+            float& r4, float& forceConstant, bool& doing_eco, float& eco_factor, int& res_index1, int& res_index2, int& globalIndex) const {
     const DistanceRestraintInfo& rest = distanceRestraints[index];
     atom1 = rest.particle1;
     atom2 = rest.particle2;
@@ -201,6 +226,10 @@ void MeldForce::getDistanceRestraintParams(int index, int& atom1, int& atom2, fl
     r3 = rest.r3;
     r4 = rest.r4;
     forceConstant = rest.force_constant;
+    doing_eco = rest.doing_eco;
+    eco_factor = rest.eco_factor;
+    res_index1 = rest.res_index1;
+    res_index2 = rest.res_index2;
     globalIndex = rest.global_index;
 }
 

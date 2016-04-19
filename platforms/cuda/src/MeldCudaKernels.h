@@ -85,6 +85,15 @@ private:
 
     OpenMM::CudaArray* distanceRestKParams;       // float to hold k
     std::vector<float> h_distanceRestKParams;
+    
+    OpenMM::CudaArray* distanceRestDoingEco;      // bool to hold doing_eco
+    std::vector<int> h_distanceRestDoingEco;
+    
+    OpenMM::CudaArray* distanceRestEcoFactors;      // bool to hold eco factors
+    std::vector<float> h_distanceRestEcoFactors;
+    
+    OpenMM::CudaArray* distanceRestEcoValues;      // bool to hold eco values
+    std::vector<float> h_distanceRestEcoValues;
 
     OpenMM::CudaArray* distanceRestAtomIndices;   // int2 to hold i,j
     std::vector<int2> h_distanceRestAtomIndices;

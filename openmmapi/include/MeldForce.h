@@ -43,6 +43,17 @@ public:
      * @return The number of distance restraints.
      */
     int getNumDistRestraints() const;
+    
+    /**
+     * @return whether setting the ECO cutoff value succeeded
+     */
+    int setEcoCutoff(float eco_cut_value);
+    
+     /**
+     * @return whether setting the alpha carbon list succeeded
+     */
+    int setAlphaCarbonVector(std::vector< int > alpha_carbon_vector) ;
+
 
     /**
      * @return The number of hyperbolic distance restraints.
@@ -104,7 +115,7 @@ public:
      * @param globalIndex  the global index of the restraint
      */
     void getDistanceRestraintParams(int index, int& atom1, int& atom2, float& r1, float& r2, float& r3,
-            float& r4, float& forceConstant, int& globalIndex) const;
+            float& r4, float& forceConstant, bool& doing_eco, float& eco_factor, int& res_index1, int& res_index2, int& globalIndex) const;
 
     /**
      * Get the parameters for a hyperbolic distance restraint. See addHyperbolicDistanceRestraint()
@@ -229,7 +240,7 @@ public:
      * @return the index of the restraint that was created
      */
     int addDistanceRestraint(int particle1, int particle2, float r1, float r2, float r3, float r4,
-            float force_constant);
+            float force_constant, bool doing_eco, float eco_factor, int res_index1, int res_index2);
 
     /**
      * Modify an existing distance restraint. See addDistanceRestraint() for more
@@ -245,7 +256,7 @@ public:
      * @param forceConstant  the force constant
      */
     void modifyDistanceRestraint(int index, int particle1, int particle2, float r1, float r2, float r3,
-            float r4, float force_constant);
+            float r4, float force_constant, bool doing_eco, float eco_factor, int res_index1, int res_index2);
 
     /**
      * Create a new hyperbolic distance restraint.
@@ -456,6 +467,8 @@ private:
     class GroupInfo;
     class CollectionInfo;
     int n_restraints;
+    float eco_cut;
+    std::vector< int > alpha_carbons;
     std::vector<DistanceRestraintInfo> distanceRestraints;
     std::vector<HyperbolicDistanceRestraintInfo> hyperbolicDistanceRestraints;
     std::vector<TorsionRestraintInfo> torsions;
@@ -468,18 +481,25 @@ private:
     public:
         int particle1, particle2;
         float r1, r2, r3, r4, force_constant;
+        bool doing_eco;
+        float eco_factor;
+        int res_index1, res_index2;
         int global_index;
 
         DistanceRestraintInfo() {
             particle1 = particle2    = -1;
             force_constant = 0.0;
+            doing_eco = false;
+            eco_factor = 1.0;
+            res_index1 = res_index2 = -1;
             r1 = r2 = r3 = r4 = 0.0;
             global_index = -1;
         }
 
         DistanceRestraintInfo(int particle1, int particle2, float r1, float r2, float r3, float r4,
-                float force_constant, int global_index) : particle1(particle1), particle2(particle2), r1(r1),
-                                                            r2(r2), r3(r3), r4(r4), force_constant(force_constant),
+                float force_constant, bool doing_eco, float eco_factor, int res_index1, int res_index2, int global_index) : particle1(particle1), particle2(particle2), r1(r1),
+                                                            r2(r2), r3(r3), r4(r4), force_constant(force_constant), doing_eco(doing_eco), eco_factor(eco_factor),
+                                                            res_index1(res_index1), res_index2(res_index2),
                                                             global_index(global_index) {
         }
     };

@@ -32,7 +32,11 @@ void testDistRest() {
     // setup meld force
     MeldForce* force = new MeldForce();
     int k = 1.0;
-    int restIdx = force->addDistanceRestraint(0, 1, 1.0, 2.0, 3.0, 4.0, k);
+    bool doing_eco = false;
+    float eco_factor = 1.0;
+    int res_index1 = 0;
+    int res_index2 = 0;
+    int restIdx = force->addDistanceRestraint(0, 1, 1.0, 2.0, 3.0, 4.0, k, doing_eco, eco_factor, res_index1, res_index2);
     std::vector<int> restIndices(1);
     restIndices[0] = restIdx;
     int groupIdx = force->addGroup(restIndices, 1);
@@ -252,7 +256,11 @@ void testDistRestChangingParameters() {
     // Define distance restraint
     MeldForce* force = new MeldForce();
     float k = 1.0;
-    int restIdx = force->addDistanceRestraint(0, 1, 1.0, 2.0, 3.0, 4.0, k);
+    bool doing_eco = false;
+    float eco_factor = 1.0;
+    int res_index1 = 0;
+    int res_index2 = 0;
+    int restIdx = force->addDistanceRestraint(0, 1, 1.0, 2.0, 3.0, 4.0, k, doing_eco, eco_factor, res_index1, res_index2);
     std::vector<int> restIndices(1);
     restIndices[0] = restIdx;
     int groupIdx = force->addGroup(restIndices, 1);
@@ -274,7 +282,11 @@ void testDistRestChangingParameters() {
 
     // Modify the parameters.
     float k2 = 2.0;
-    force->modifyDistanceRestraint(0, 0, 1, 1.0, 2.0, 3.0, 4.0, k2);
+    bool doing_eco2 = false;
+    float eco_factor2 = 1.0;
+    int res_index1_2 = 0;
+    int res_index2_2 = 0;
+    force->modifyDistanceRestraint(0, 0, 1, 1.0, 2.0, 3.0, 4.0, k2, doing_eco2, eco_factor2, res_index1_2, res_index2_2);
     force->updateParametersInContext(context);
     state = context.getState(State::Energy);
 
@@ -424,8 +436,8 @@ void testGroupSelectsCorrectly() {
 
     // setup meld force
     MeldForce* force = new MeldForce();
-    int restIdx1 = force->addDistanceRestraint(0, 1, 0.0, 0.0, 3.0, 999.0, 1.0);
-    int restIdx2 = force->addDistanceRestraint(1, 2, 0.0, 0.0, 3.0, 999.0, 1.0);
+    int restIdx1 = force->addDistanceRestraint(0, 1, 0.0, 0.0, 3.0, 999.0, 1.0, false, 1.0, 0, 0);
+    int restIdx2 = force->addDistanceRestraint(1, 2, 0.0, 0.0, 3.0, 999.0, 1.0, false, 1.0, 0, 0);
 
     // setup group
     std::vector<int> group(2);
@@ -480,8 +492,8 @@ void testCollectionSelectsCorrectly() {
 
     // setup meld force
     MeldForce* force = new MeldForce();
-    int restIdx1 = force->addDistanceRestraint(0, 1, 0.0, 0.0, 3.0, 999.0, 1.0);
-    int restIdx2 = force->addDistanceRestraint(1, 2, 0.0, 0.0, 3.0, 999.0, 1.0);
+    int restIdx1 = force->addDistanceRestraint(0, 1, 0.0, 0.0, 3.0, 999.0, 1.0, false, 1.0, 0, 0);
+    int restIdx2 = force->addDistanceRestraint(1, 2, 0.0, 0.0, 3.0, 999.0, 1.0, false, 1.0, 0, 0);
 
     // setup group1
     std::vector<int> group1(1);

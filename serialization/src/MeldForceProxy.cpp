@@ -24,7 +24,10 @@ void MeldForceProxy::serialize(const void* object, SerializationNode& node) cons
     for (int i = 0; i < force.getNumDistRestraints(); i++) {
         int atom1, atom2, globalIndex;
         float r1, r2, r3, r4, forceConstant;
-        force.getDistanceRestraintParams(i, atom1, atom2, r1, r2, r3, r4, forceConstant, globalIndex);
+        bool doing_eco;
+        float eco_factor;
+        int res_index1, res_index2;
+        force.getDistanceRestraintParams(i, atom1, atom2, r1, r2, r3, r4, forceConstant, doing_eco, eco_factor, res_index1, res_index2, globalIndex);
         SerializationNode& dr = distanceRestraints.createChildNode("DistanceRestraint");
         dr.setIntProperty("atom1", atom1);
         dr.setIntProperty("atom2", atom2);
@@ -33,6 +36,10 @@ void MeldForceProxy::serialize(const void* object, SerializationNode& node) cons
         dr.setDoubleProperty("r3", r3);
         dr.setDoubleProperty("r4", r4);
         dr.setDoubleProperty("forceConstant", forceConstant);
+        dr.setBoolProperty("doing_eco", doing_eco);
+        dr.setDoubleProperty("eco_factor", eco_factor);
+        dr.setIntProperty("res_index1", res_index1);
+        dr.setIntProperty("res_index2", res_index2);
         dr.setIntProperty("globalIndex", globalIndex);
     }
 
@@ -244,7 +251,11 @@ void* MeldForceProxy::deserialize(const SerializationNode& node) const {
             float r3 = dr.getDoubleProperty("r3");
             float r4 = dr.getDoubleProperty("r4");
             float forceConstant = dr.getDoubleProperty("forceConstant");
-            force->addDistanceRestraint(atom1, atom2, r1, r2, r3, r4, forceConstant);
+            bool doing_eco = dr.getBoolProperty("doing_eco");
+            float eco_factor = dr.getDoubleProperty("eco_factor");
+            int res_index1 = dr.getIntProperty("res_index1");
+            int res_index2 = dr.getIntProperty("res_index2");
+            force->addDistanceRestraint(atom1, atom2, r1, r2, r3, r4, forceConstant, doing_eco, eco_factor, res_index1, res_index2);
         }
 
         // deserialize torsion restraints

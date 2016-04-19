@@ -99,6 +99,9 @@ extern "C" __global__ void computeDistRest(
                             const int2* __restrict__ atomIndices,       // pair of atom indices
                             const float4* __restrict__ distanceBounds,  // r1, r2, r3, r4
                             const float* __restrict__ forceConstants,   // k
+                            const int* __restrict__ doing_ecos,          // doing_eco
+                            const float* __restrict__ eco_factors,         // eco_factor
+                            const float* __restrict__ eco_values,         // the ECO values
                             int* __restrict__ indexToGlobal,            // array of indices into global arrays
                             float* __restrict__ energies,               // global array of restraint energies
                             float3* __restrict__ forceBuffer,           // temporary buffer to hold the force
@@ -115,6 +118,9 @@ extern "C" __global__ void computeDistRest(
 
         // get the force constant
         const float k = forceConstants[index];
+        const bool doing_eco = doing_ecos[index]; // whether we are doing eco for this restraint
+        const float eco_factor = eco_factors[index]; // the factor in the numerator of the eco tweak
+        float eco_value = eco_values[index]; // the actual ECO value for this restraint
 
         // get atom indices and compute distance
         int atomIndexA = atomIndices[index].x;
@@ -153,6 +159,11 @@ extern "C" __global__ void computeDistRest(
         else {
             energy = k * (r - r4) * (r4 - r3) + 0.5 * k * (r4 - r3) * (r4 - r3);
             dEdR = k * (r4 - r3);
+        }
+        
+        if ((doing_eco == true) && (eco_value > 0.0)) { // make sure we want to do eco and that the eco value is positive
+          energy *= (eco_factor / eco_value); // ECO adjustments here
+          dEdR *= (eco_factor / eco_value);
         }
 
         assert(isfinite(energy));

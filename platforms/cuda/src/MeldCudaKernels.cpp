@@ -60,6 +60,9 @@ CudaCalcMeldForceKernel::CudaCalcMeldForceKernel(std::string name, const Platfor
 
     distanceRestRParams = NULL;
     distanceRestKParams = NULL;
+    distanceRestDoingEco = NULL;
+    distanceRestEcoFactors = NULL;
+    distanceRestEcoValues = NULL;
     distanceRestAtomIndices = NULL;
     distanceRestGlobalIndices = NULL;
     distanceRestForces = NULL;
@@ -109,6 +112,9 @@ CudaCalcMeldForceKernel::~CudaCalcMeldForceKernel() {
     cu.setAsCurrent();
     delete distanceRestRParams;
     delete distanceRestKParams;
+    delete distanceRestDoingEco;
+    delete distanceRestEcoFactors;
+    delete distanceRestEcoValues;
     delete distanceRestAtomIndices;
     delete distanceRestGlobalIndices;
     delete distanceRestForces;
@@ -170,7 +176,10 @@ void CudaCalcMeldForceKernel::allocateMemory(const MeldForce& force) {
     if (numDistRestraints > 0) {
         distanceRestRParams        = CudaArray::create<float4> ( cu, numDistRestraints, "distanceRestRParams");
         distanceRestKParams        = CudaArray::create<float>  ( cu, numDistRestraints, "distanceRestKParams");
-        distanceRestAtomIndices    = CudaArray::create<int2>    ( cu, numDistRestraints, "distanceRestAtomIndices");
+        distanceRestDoingEco       = CudaArray::create<int>   ( cu, numDistRestraints, "distanceRestDoingEco");
+        distanceRestEcoFactors     = CudaArray::create<float>  ( cu, numDistRestraints, "distanceRestEcoFactors");
+        distanceRestEcoValues      = CudaArray::create<float>  ( cu, numDistRestraints, "distanceRestEcoValues");
+        distanceRestAtomIndices    = CudaArray::create<int2>   ( cu, numDistRestraints, "distanceRestAtomIndices");
         distanceRestGlobalIndices  = CudaArray::create<int>    ( cu, numDistRestraints, "distanceRestGlobalIndices");
         distanceRestForces         = CudaArray::create<float3> ( cu, numDistRestraints, "distanceRestForces");
     }
@@ -231,6 +240,9 @@ void CudaCalcMeldForceKernel::allocateMemory(const MeldForce& force) {
     // setup host memory
     h_distanceRestRParams                 = std::vector<float4> (numDistRestraints, make_float4( 0, 0, 0, 0));
     h_distanceRestKParams                 = std::vector<float>  (numDistRestraints, 0);
+    h_distanceRestDoingEco                = std::vector<int>    (numDistRestraints, 0);
+    h_distanceRestEcoFactors              = std::vector<float>  (numDistRestraints, 0);
+    h_distanceRestEcoValues               = std::vector<float>  (numDistRestraints, 0);
     h_distanceRestAtomIndices             = std::vector<int2>   (numDistRestraints, make_int2( -1, -1));
     h_distanceRestGlobalIndices           = std::vector<int>    (numDistRestraints, -1);
     h_hyperbolicDistanceRestRParams       = std::vector<float4> (numHyperbolicDistRestraints, make_float4( 0, 0, 0, 0));
@@ -393,7 +405,11 @@ void CudaCalcMeldForceKernel::setupDistanceRestraints(const MeldForce& force) {
     for (int i=0; i < numDistRestraints; ++i) {
         int atom_i, atom_j, global_index;
         float r1, r2, r3, r4, k;
-        force.getDistanceRestraintParams(i, atom_i, atom_j, r1, r2, r3, r4, k, global_index);
+        bool doing_eco;
+        float eco_factor;
+        int res_index1;
+        int res_index2;
+        force.getDistanceRestraintParams(i, atom_i, atom_j, r1, r2, r3, r4, k, doing_eco, eco_factor, res_index1, res_index2, global_index);
 
         checkAtomIndex(numAtoms, restType, atom_i, i, global_index);
         checkAtomIndex(numAtoms, restType, atom_j, i, global_index);
@@ -402,6 +418,9 @@ void CudaCalcMeldForceKernel::setupDistanceRestraints(const MeldForce& force) {
 
         h_distanceRestRParams[i] = make_float4(r1, r2, r3, r4);
         h_distanceRestKParams[i] = k;
+        h_distanceRestDoingEco[i] = doing_eco;
+        h_distanceRestEcoFactors[i] = eco_factor;
+        h_distanceRestEcoValues[i] = 1.0; // LANE: we need to have the MELD code fill this value with whatever is actually happening
         h_distanceRestAtomIndices[i] = make_int2(atom_i, atom_j);
         h_distanceRestGlobalIndices[i] = global_index;
     }
@@ -619,6 +638,9 @@ void CudaCalcMeldForceKernel::validateAndUpload() {
     if (numDistRestraints > 0) {
         distanceRestRParams->upload(h_distanceRestRParams);
         distanceRestKParams->upload(h_distanceRestKParams);
+        distanceRestDoingEco->upload(h_distanceRestDoingEco);
+        distanceRestEcoFactors->upload(h_distanceRestEcoFactors);
+        distanceRestEcoValues->upload(h_distanceRestEcoValues);
         distanceRestAtomIndices->upload(h_distanceRestAtomIndices);
         distanceRestGlobalIndices->upload(h_distanceRestGlobalIndices);
     }
@@ -737,16 +759,35 @@ void CudaCalcMeldForceKernel::copyParametersToContext(ContextImpl& context, cons
 
 double CudaCalcMeldForceKernel::execute(ContextImpl& context, bool includeForces, bool includeEnergy) {
     // compute the forces and energies
+    int counter;
     if (numDistRestraints > 0) {
         void* distanceArgs[] = {
             &cu.getPosq().getDevicePointer(),
             &distanceRestAtomIndices->getDevicePointer(),
             &distanceRestRParams->getDevicePointer(),
             &distanceRestKParams->getDevicePointer(),
+            &distanceRestDoingEco->getDevicePointer(), 
+            &distanceRestEcoFactors->getDevicePointer(),
+            &distanceRestEcoValues->getDevicePointer(),
             &distanceRestGlobalIndices->getDevicePointer(),
             &restraintEnergies->getDevicePointer(),
             &distanceRestForces->getDevicePointer(),
-            &numDistRestraints};
+            &numDistRestraints}; // this is getting the reference pointer for each of these arrays
+        /*cout << "DoingEco array:"; // LANE: added these to debug values passed to the GPUs
+        for (counter = 0; counter < numDistRestraints; counter++) {
+          cout << " " << h_distanceRestDoingEco[counter];
+        }
+        cout << "\n";
+        cout << "EcoFactors array:";
+        for (counter = 0; counter < numDistRestraints; counter++) {
+          cout << " " << h_distanceRestEcoFactors[counter];
+        }
+        cout << "\n";
+        cout << "EcoValues array:";
+        for (counter = 0; counter < numDistRestraints; counter++) {
+          cout << " " << h_distanceRestEcoValues[counter];
+        }
+        cout << "\n"; */
         cu.executeKernel(computeDistRestKernel, distanceArgs, numDistRestraints);
     }
 
