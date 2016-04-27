@@ -40,6 +40,9 @@ public:
      * @param includeEnergy  true if the energy should be calculated
      * @return the potential energy due to the force
      */
+
+    void calcEcoValues();
+
     double execute(OpenMM::ContextImpl& context, bool includeForces, bool includeEnergy);
 
     void copyParametersToContext(OpenMM::ContextImpl& context, const MeldForce& force);
@@ -56,6 +59,7 @@ private:
     int numRestraints;
     int numGroups;
     int numCollections;
+    float ecoCutoff;
     int largestGroup;
     int largestCollection;
     int groupsPerBlock;
@@ -74,6 +78,8 @@ private:
     CUfunction applyTorsionRestKernel;
     CUfunction applyDistProfileRestKernel;
     CUfunction applyTorsProfileRestKernel;
+    CUfunction computeContactsKernel;
+    CUfunction computeEdgeListKernel;
 
     /**
      * Arrays for distance restraints
@@ -93,7 +99,6 @@ private:
     std::vector<float> h_distanceRestEcoFactors;
     
     OpenMM::CudaArray* distanceRestEcoValues;      // bool to hold eco values
-    std::vector<float> h_distanceRestEcoValues;
 
     OpenMM::CudaArray* distanceRestAtomIndices;   // int2 to hold i,j
     std::vector<int2> h_distanceRestAtomIndices;
@@ -102,6 +107,13 @@ private:
     std::vector<int> h_distanceRestGlobalIndices;
 
     OpenMM::CudaArray* distanceRestForces; // cache to hold force computations until the final application step
+
+    OpenMM::CudaArray* distanceRestContacts; // Integer array of contacts, of size numRestraints**2
+
+    OpenMM::CudaArray* distanceRestEdgeCounts; // Integer array of edge counts, of size numRestraints
+
+    OpenMM::CudaArray* alphaCarbons; // Indices of alpha carbons
+    std::vector<int> h_alphaCarbons;
 
     /**
      * Arrays for hyperbolic distance restraints

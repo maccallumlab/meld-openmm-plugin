@@ -54,6 +54,7 @@ CudaCalcMeldForceKernel::CudaCalcMeldForceKernel(std::string name, const Platfor
     numRestraints = 0;
     numGroups = 0;
     numCollections = 0;
+    ecoCutoff = 0;
     largestGroup = 0;
     largestCollection = 0;
     groupsPerBlock = -1;
@@ -63,6 +64,9 @@ CudaCalcMeldForceKernel::CudaCalcMeldForceKernel(std::string name, const Platfor
     distanceRestDoingEco = NULL;
     distanceRestEcoFactors = NULL;
     distanceRestEcoValues = NULL;
+    distanceRestContacts = NULL;
+    distanceRestEdgeCounts = NULL;
+    alphaCarbons = NULL;
     distanceRestAtomIndices = NULL;
     distanceRestGlobalIndices = NULL;
     distanceRestForces = NULL;
@@ -115,6 +119,9 @@ CudaCalcMeldForceKernel::~CudaCalcMeldForceKernel() {
     delete distanceRestDoingEco;
     delete distanceRestEcoFactors;
     delete distanceRestEcoValues;
+    delete distanceRestContacts;
+    delete distanceRestEdgeCounts;
+    delete alphaCarbons;
     delete distanceRestAtomIndices;
     delete distanceRestGlobalIndices;
     delete distanceRestForces;
@@ -171,17 +178,21 @@ void CudaCalcMeldForceKernel::allocateMemory(const MeldForce& force) {
     numRestraints = force.getNumTotalRestraints();
     numGroups = force.getNumGroups();
     numCollections = force.getNumCollections();
+    ecoCutoff = force.getEcoCutoff();
 
     // setup device memory
     if (numDistRestraints > 0) {
         distanceRestRParams        = CudaArray::create<float4> ( cu, numDistRestraints, "distanceRestRParams");
         distanceRestKParams        = CudaArray::create<float>  ( cu, numDistRestraints, "distanceRestKParams");
-        distanceRestDoingEco       = CudaArray::create<int>   ( cu, numDistRestraints, "distanceRestDoingEco");
+        distanceRestDoingEco       = CudaArray::create<int>    ( cu, numDistRestraints, "distanceRestDoingEco");
         distanceRestEcoFactors     = CudaArray::create<float>  ( cu, numDistRestraints, "distanceRestEcoFactors");
         distanceRestEcoValues      = CudaArray::create<float>  ( cu, numDistRestraints, "distanceRestEcoValues");
+	distanceRestContacts       = CudaArray::create<int>    ( cu, numDistRestraints*numDistRestraints, "distanceRestContacts");
+	distanceRestEdgeCounts     = CudaArray::create<int>    ( cu, numDistRestraints, "distanceRestEdgeCounts");
         distanceRestAtomIndices    = CudaArray::create<int2>   ( cu, numDistRestraints, "distanceRestAtomIndices");
         distanceRestGlobalIndices  = CudaArray::create<int>    ( cu, numDistRestraints, "distanceRestGlobalIndices");
         distanceRestForces         = CudaArray::create<float3> ( cu, numDistRestraints, "distanceRestForces");
+	alphaCarbons		   = CudaArray::create<int>    ( cu, numDistRestraints, "alphaCarbons");
     }
 
     if (numHyperbolicDistRestraints > 0) {
@@ -242,7 +253,7 @@ void CudaCalcMeldForceKernel::allocateMemory(const MeldForce& force) {
     h_distanceRestKParams                 = std::vector<float>  (numDistRestraints, 0);
     h_distanceRestDoingEco                = std::vector<int>    (numDistRestraints, 0);
     h_distanceRestEcoFactors              = std::vector<float>  (numDistRestraints, 0);
-    h_distanceRestEcoValues               = std::vector<float>  (numDistRestraints, 0);
+    h_alphaCarbons                        = std::vector<int>    (numDistRestraints, 0);
     h_distanceRestAtomIndices             = std::vector<int2>   (numDistRestraints, make_int2( -1, -1));
     h_distanceRestGlobalIndices           = std::vector<int>    (numDistRestraints, -1);
     h_hyperbolicDistanceRestRParams       = std::vector<float4> (numHyperbolicDistRestraints, make_float4( 0, 0, 0, 0));
@@ -420,9 +431,9 @@ void CudaCalcMeldForceKernel::setupDistanceRestraints(const MeldForce& force) {
         h_distanceRestKParams[i] = k;
         h_distanceRestDoingEco[i] = doing_eco;
         h_distanceRestEcoFactors[i] = eco_factor;
-        h_distanceRestEcoValues[i] = 1.0; // LANE: we need to have the MELD code fill this value with whatever is actually happening
         h_distanceRestAtomIndices[i] = make_int2(atom_i, atom_j);
         h_distanceRestGlobalIndices[i] = global_index;
+        h_alphaCarbons[i] = force.getAlphaCarbons()[i];
     }
 }
 
@@ -640,7 +651,7 @@ void CudaCalcMeldForceKernel::validateAndUpload() {
         distanceRestKParams->upload(h_distanceRestKParams);
         distanceRestDoingEco->upload(h_distanceRestDoingEco);
         distanceRestEcoFactors->upload(h_distanceRestEcoFactors);
-        distanceRestEcoValues->upload(h_distanceRestEcoValues);
+	alphaCarbons->upload(h_alphaCarbons);
         distanceRestAtomIndices->upload(h_distanceRestAtomIndices);
         distanceRestGlobalIndices->upload(h_distanceRestGlobalIndices);
     }
@@ -737,6 +748,8 @@ void CudaCalcMeldForceKernel::initialize(const System& system, const MeldForce& 
     applyTorsionRestKernel = cu.getKernel(module, "applyTorsionRest");
     applyDistProfileRestKernel = cu.getKernel(module, "applyDistProfileRest");
     applyTorsProfileRestKernel = cu.getKernel(module, "applyTorsProfileRest");
+    computeContactsKernel = cu.getKernel(module, "computeContacts");
+    computeEdgeListKernel = cu.getKernel(module, "computeEdgeList");
 }
 
 
@@ -756,6 +769,30 @@ void CudaCalcMeldForceKernel::copyParametersToContext(ContextImpl& context, cons
     cu.invalidateMolecules();
 }
 
+/*
+ * This function handles the calculation of the eco values. First a graph of contacts is created, then shortest paths are calculated.
+ * The eco values are stored in distanceRestEcoValues on the device.
+ */
+void CudaCalcMeldForceKernel::calcEcoValues() {
+
+    void* contactsArgs[] = {
+	&cu.getPosq().getDevicePointer(),
+	&distanceRestAtomIndices->getDevicePointer(),
+	&numDistRestraints,
+	&ecoCutoff,
+	&distanceRestContacts->getDevicePointer(),
+	&alphaCarbons->getDevicePointer()};
+
+    cu.executeKernel(computeContactsKernel, contactsArgs, numDistRestraints);
+    
+    void* edgeListArgs[] = {
+	&distanceRestContacts->getDevicePointer(),
+	&distanceRestEdgeCounts->getDevicePointer(),
+	&numDistRestraints};
+
+    cu.executeKernel(computeEdgeListKernel, edgeListArgs, numDistRestraints);
+
+}
 
 double CudaCalcMeldForceKernel::execute(ContextImpl& context, bool includeForces, bool includeEnergy) {
     // compute the forces and energies

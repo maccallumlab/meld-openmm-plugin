@@ -82,11 +82,21 @@ int MeldForce::setEcoCutoff(float eco_cut_value) { // set the internal parameter
     return 0;
 }
 
+float MeldForce::getEcoCutoff() const {
+    return eco_cut;
+}
+
 int MeldForce::setAlphaCarbonVector(std::vector< int > alpha_carbon_vector) {
     //alpha_carbons.reserve(alpha_carbon_vector.size()); // set the size of the global alpha carbon vector
     //copy(alpha_carbon_vector.begin(), alpha_carbon_vector.end(), );
     alpha_carbons.swap(alpha_carbon_vector);
     return 0;
+}
+
+std::vector<int> MeldForce::getAlphaCarbons() const {
+
+    return alpha_carbons;
+
 }
 
 int MeldForce::addDistanceRestraint(int particle1, int particle2, float r1, float r2,
