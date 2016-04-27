@@ -420,7 +420,7 @@ void CudaCalcMeldForceKernel::setupDistanceRestraints(const MeldForce& force) {
         h_distanceRestKParams[i] = k;
         h_distanceRestDoingEco[i] = doing_eco;
         h_distanceRestEcoFactors[i] = eco_factor;
-        h_distanceRestEcoValues[i] = 1.0; // LANE: we need to have the MELD code fill this value with whatever is actually happening
+        h_distanceRestEcoValues[i] = 1.0; // LANE: we need to have the MELD code fill this value with the eco between the two atoms of this restraint
         h_distanceRestAtomIndices[i] = make_int2(atom_i, atom_j);
         h_distanceRestGlobalIndices[i] = global_index;
     }
@@ -761,6 +761,8 @@ double CudaCalcMeldForceKernel::execute(ContextImpl& context, bool includeForces
     // compute the forces and energies
     int counter;
     if (numDistRestraints > 0) {
+        
+    
         void* distanceArgs[] = {
             &cu.getPosq().getDevicePointer(),
             &distanceRestAtomIndices->getDevicePointer(),
