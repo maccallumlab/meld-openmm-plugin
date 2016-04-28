@@ -49,11 +49,25 @@ public:
      */
     int setEcoCutoff(float eco_cut_value);
     
+    /*
+     * @return The eco cutoff. 
+     */
+    float getEcoCutoff() const;
+    
+    /*
+     * @return The number of residues. 
+     */
+    int getNumResidues() const;
+
      /**
      * @return whether setting the alpha carbon list succeeded
      */
     int setAlphaCarbonVector(std::vector< int > alpha_carbon_vector) ;
-
+    
+    /**
+    * @return The alpha carbon vector.
+    */
+    std::vector<int> getAlphaCarbons() const;
 
     /**
      * @return The number of hyperbolic distance restraints.

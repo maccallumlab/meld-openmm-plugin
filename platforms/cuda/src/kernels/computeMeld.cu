@@ -94,6 +94,59 @@ __device__ void computeTorsionForce(const float dEdPhi, const float3& r_ij, cons
 }
 
 
+extern "C" __global__ void computeContacts(const real4* __restrict__ posq,
+                                           const int2* __restrict__ atomIndices,
+                                           const int numResidues,
+                                           const float contactDist,
+                                           int* contacts,
+                                           const int* alpha_carbons)
+{
+
+int i = blockIdx.x * blockDim.x + threadIdx.x;
+int j = blockIdx.y * blockDim.y + threadIdx.y;
+real contactDist_sq = contactDist * contactDist;
+
+if (i < numResidues && j < numResidues) {
+        if (i == j) {
+                contacts[j + i*numResidues] = 0;
+        } else if ((j == i - 1) || (j == i + 1)) {
+                contacts[j + i*numResidues] = 1;
+        } else {
+                real4 delta = posq[alpha_carbons[i]] - posq[alpha_carbons[j]];
+                real distSquared = delta.x*delta.x + delta.y*delta.y + delta.z*delta.z;
+                //real r = SQRT(distSquared);
+                //if (r < contactDist) {
+                if (distSquared < contactDist_sq) {
+                        contacts[j + i*numResidues] = 1;
+                } else {
+                        contacts[j + i*numResidues] = 0;
+                }
+        }
+}
+}
+
+
+extern "C" __global__ void computeEdgeList(int* contacts,
+                                           int* edge_counts,
+                                           int num_nodes)
+{
+
+int tx = blockIdx.x * blockDim.x + threadIdx.x;
+
+int ptr = 0;
+
+if (tx < num_nodes) {
+        for (int i = 0; i < num_nodes; i++) {
+                if (contacts[i + tx*num_nodes] == 1) {
+                        contacts[i + tx*num_nodes] = i;
+                        edge_counts[tx]++;
+                        ptr++;
+                }
+        }
+}
+}
+
+
 extern "C" __global__ void computeDistRest(
                             const real4* __restrict__ posq,             // positions and charges
                             const int2* __restrict__ atomIndices,       // pair of atom indices
