@@ -49,7 +49,7 @@ except UnboundLocalError:
     Add units to outputs
 */
 %pythonappend MeldPlugin::MeldForce::getDistanceRestraintParams(int index, int& atom1, int& atom2, float& r1, float& r2, float& r3,
-                                                                float& r4, float& forceConstant, bool& doing_eco, float& eco_factor, int& res_index1, int& res_index2, int& globalIndex) const %{
+                                                                float& r4, float& forceConstant, bool& doing_eco, float& eco_factor, float& eco_constant, float& eco_linear, int& res_index1, int& res_index2, int& globalIndex) const %{
    val[2]=unit.Quantity(val[2], unit.nanometer)
    val[3]=unit.Quantity(val[3], unit.nanometer)
    val[4]=unit.Quantity(val[4], unit.nanometer)
@@ -102,6 +102,8 @@ namespace MeldPlugin {
         int setEcoCutoff(float eco_cut_value);
         
         int setAlphaCarbonVector(std::vector< int > alpha_carbon_vector);
+        
+        int setDistRestSortedVector(std::vector< int > dist_rest_sorted_vector);
 
         int getNumTorsionRestraints() const;
 
@@ -128,11 +130,13 @@ namespace MeldPlugin {
         %apply float& OUTPUT {float& forceConstant};
         %apply bool& OUTPUT {bool& doing_eco};
         %apply float& OUTPUT {float& eco_factor};
+        %apply float& OUTPUT {float& eco_constant};
+        %apply float& OUTPUT {float& eco_linear};
         %apply int& OUTPUT {int& res_index1};
         %apply int& OUTPUT {int& res_index2};
         %apply int& OUTPUT {int& globalIndex};
         void getDistanceRestraintParams(int index, int& atom1, int& atom2, float& r1, float& r2, float& r3,
-                float& r4, float& forceConstant, bool& doing_eco, float& eco_factor, int& res_index1, int& res_index2, int& globalIndex) const;
+                float& r4, float& forceConstant, bool& doing_eco, float& eco_factor, float& eco_constant, float& eco_linear, int& res_index1, int& res_index2, int& globalIndex) const;
         %clear int& atom1;
         %clear int& atom2;
         %clear float& r1;
@@ -142,6 +146,8 @@ namespace MeldPlugin {
         %clear float& forceConstant;
         %clear bool& doing_eco;
         %clear float& eco_factor;
+        %clear float& eco_constant;
+        %clear float& eco_linear;
         %clear int& res_index1;
         %clear int& res_index2;
         %clear int& globalIndex;
@@ -267,10 +273,10 @@ namespace MeldPlugin {
         %clear int& numActive;
 
         int addDistanceRestraint(int particle1, int particle2, float r1, float r2, float r3, float r4,
-                float force_constant, bool doing_eco, float eco_factor, int res_index1, int res_index2);
+                float force_constant, bool doing_eco, float eco_factor, float eco_constant, float eco_linear, int res_index1, int res_index2);
 
         void modifyDistanceRestraint(int index, int particle1, int particle2, float r1, float r2, float r3,
-                float r4, float force_constant, bool doing_eco, float eco_factor, int res_index1, int res_index2);
+                float r4, float force_constant, bool doing_eco, float eco_factor, float eco_constant, float eco_linear, int res_index1, int res_index2);
 
         int addHyperbolicDistanceRestraint(int particle1, int particle2, float r1, float r2, float r3, float r4,
                 float force_constant, float asymptote);

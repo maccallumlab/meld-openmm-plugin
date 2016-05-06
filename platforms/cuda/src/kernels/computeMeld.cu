@@ -102,15 +102,22 @@ extern "C" __global__ void computeContacts(const real4* __restrict__ posq,
                                            const int* alpha_carbons)
 {
 
-int i = blockIdx.x * blockDim.x + threadIdx.x;
-int j = blockIdx.y * blockDim.y + threadIdx.y;
+int i_linear = blockIdx.x * blockDim.x + threadIdx.x;
+//int j = blockIdx.y * blockDim.y + threadIdx.y; // cannot use y in openmm it seems...
+
+int i = i_linear % numResidues; // integer divide gives the 'column' index, in a way 
+int j = i_linear / numResidues; // modulo gives the 'row' index
+
 real contactDist_sq = contactDist * contactDist;
+//contacts[j + i*numResidues] = 0; // this was a test
 
 if (i < numResidues && j < numResidues) {
         if (i == j) {
                 contacts[j + i*numResidues] = 0;
         } else if ((j == i - 1) || (j == i + 1)) {
                 contacts[j + i*numResidues] = 1;
+        // } else if ((j == i - 2) || (j == i + 2)) { // or even +/- 3 ???
+        //      contacts[j + i*numResidues] = 0;
         } else {
                 real4 delta = posq[alpha_carbons[i]] - posq[alpha_carbons[j]];
                 real distSquared = delta.x*delta.x + delta.y*delta.y + delta.z*delta.z;
@@ -123,8 +130,130 @@ if (i < numResidues && j < numResidues) {
                 }
         }
 }
+
 }
 
+extern "C" __global__ void test_get_alpha_carbon_posq(const real4* __restrict__ posq,
+                                           float* alphaCarbonPosq,
+                                           const int* alpha_carbons,
+                                           int numResidues)
+{
+  // This kernel exists solely for testing purposes to bring over the x,y,z coordinates of the alpha carbons
+  int index = blockIdx.x * blockDim.x + threadIdx.x;
+  if ( index < numResidues ) {
+    alphaCarbonPosq[index*3] = (float) posq[alpha_carbons[index]].x; 
+    alphaCarbonPosq[index*3 + 1] = (float) posq[alpha_carbons[index]].y; 
+    alphaCarbonPosq[index*3 + 2] = (float) posq[alpha_carbons[index]].z; 
+  }
+}
+
+
+extern "C" __global__ void dijkstra_initialize(bool* unexplored,
+                                           bool* frontier,
+                                           int* distance,
+                                           int* n_explored,
+                                           int src,
+                                           int LARGE,
+                                           int n_nodes)
+{
+  // Initialize the arrays right before a Dijkstra calculation
+  int index = blockIdx.x * blockDim.x + threadIdx.x;
+  if (index < n_nodes) {
+    unexplored[index] = true;
+    frontier[index] = false;
+    distance[index] = LARGE;
+    n_explored[index] = 0;
+    if (index == src) {
+      unexplored[index] = false;
+      frontier[index] = true;
+      distance[index] = 0;
+    }
+  }
+}
+
+extern "C" __global__ void dijkstra_save_old_vectors(bool* unexplored,
+                                           bool* unexplored_old,
+                                           bool* frontier,
+                                           bool* frontier_old,
+                                           int n_nodes)
+{
+  // back up the old arrays to be used by the next iteration of the Dijkstra algorithm
+  int index = blockIdx.x * blockDim.x + threadIdx.x;
+  if (index < n_nodes) {
+    unexplored_old[index] = unexplored[index];
+    frontier_old[index] = frontier[index];
+  }
+}
+
+extern "C" __global__ void dijkstra_settle_and_update(bool* unexplored,
+                                           bool* unexplored_old,
+                                           bool* frontier,
+                                           bool* frontier_old,
+                                           int* distance,
+                                           int* edge_counts,
+                                           int* contacts,
+                                           int* n_explored,
+                                           int num_iter,
+                                           int n_nodes)
+{
+  // perform a Dijkstra calculation
+  int index = blockIdx.x * blockDim.x + threadIdx.x;
+  int j;
+  int edge_index;
+  int head;
+  if (index < n_nodes) {
+    n_explored[index] = 0;
+    if (unexplored_old[index] == true) { // this node has been unexplored
+      for (j=0; j<edge_counts[index]; j++) { // loop thru the nodes that lead to this one 
+        edge_index = index*n_nodes + j;  // get the index of this edge
+        head = contacts[edge_index];  // the index of the node that is leading to this one
+        if (frontier_old[head] == true) { // if the head node is on the frontier, the we need to change our explored status
+          frontier[index] = true; // then add myself to the frontier
+          unexplored[index] = false; // remove myself from the unexplored
+          distance[index] = num_iter + 1; // the number of iterations we've needed to find me is the distance
+          n_explored[index]=1;
+        }
+      }
+    }
+  }
+
+}
+
+extern "C" __global__ void dijkstra_log_reduce(int n_nodes,
+                                               int* n_explored,
+                                               int* total)
+{
+  // compute the number of explorations made in this round, and add them to the total
+  int i = 1; // the order of this log reduction
+  int index = blockIdx.x * blockDim.x + threadIdx.x;
+  if (index < n_nodes) {
+    while (i < n_nodes) {
+      if ((index % (i*2)) == 0) { // if I belong to this order
+        if ((index+i) < n_nodes) {
+          n_explored[index] += n_explored[index+i];
+        }
+      }
+      i*=2; // double the order
+    }
+    if (index == 0) { 
+      total[0] = n_explored[0];
+    } // set 'total' equal to the reduced sum
+  }
+}
+
+extern "C" __global__ void assignRestEco(int src,
+                                         int2* distanceRestResidueIndices,
+                                         int* distance,
+                                         float* eco_values
+                                         )
+{
+  // If a restraint has a certain "src" value, it will assign the proper ECO value to it
+  int index = blockIdx.x * blockDim.x + threadIdx.x;
+  int dest = distanceRestResidueIndices[index].y;
+  if (distanceRestResidueIndices[index].x == src) { // if this restraint has one end in the current src
+    eco_values[index] = (float)(1 * distance[dest]); // assign the eco value for this restraint from the distance array
+  }
+}
 
 extern "C" __global__ void computeEdgeList(int* contacts,
                                            int* edge_counts,
@@ -134,11 +263,12 @@ extern "C" __global__ void computeEdgeList(int* contacts,
 int tx = blockIdx.x * blockDim.x + threadIdx.x;
 
 int ptr = 0;
+edge_counts[tx] = 0; // this must be initialized at zero
 
 if (tx < num_nodes) {
         for (int i = 0; i < num_nodes; i++) {
                 if (contacts[i + tx*num_nodes] == 1) {
-                        contacts[i + tx*num_nodes] = i;
+                        contacts[ptr + tx*num_nodes] = i;
                         edge_counts[tx]++;
                         ptr++;
                 }
@@ -154,7 +284,10 @@ extern "C" __global__ void computeDistRest(
                             const float* __restrict__ forceConstants,   // k
                             const int* __restrict__ doing_ecos,          // doing_eco
                             const float* __restrict__ eco_factors,         // eco_factor
-                            const float* __restrict__ eco_values,         // the ECO values
+                            const float* __restrict__ eco_constants,      // eco constants
+                            const float* __restrict__ eco_linears,         // eco linear factor
+                            float* __restrict__ eco_values,         // the ECO values
+                            //float* __restrict__ co_values,          // the CO values (contact order)
                             int* __restrict__ indexToGlobal,            // array of indices into global arrays
                             float* __restrict__ energies,               // global array of restraint energies
                             float3* __restrict__ forceBuffer,           // temporary buffer to hold the force
@@ -173,7 +306,10 @@ extern "C" __global__ void computeDistRest(
         const float k = forceConstants[index];
         const bool doing_eco = doing_ecos[index]; // whether we are doing eco for this restraint
         const float eco_factor = eco_factors[index]; // the factor in the numerator of the eco tweak
+        const float eco_constant = eco_constants[index]; 
+        const float eco_linear = eco_linears[index];
         float eco_value = eco_values[index]; // the actual ECO value for this restraint
+        //const float co_value = co_values[index]; // the CO (contact order) value for this restraint
 
         // get atom indices and compute distance
         int atomIndexA = atomIndices[index].x;
@@ -187,6 +323,7 @@ extern "C" __global__ void computeDistRest(
         float dEdR = 0.0;
         float diff = 0.0;
         float diff2 = 0.0;
+        float eco_multiple = 0.0;
         float3 f;
 
         if(r < r1) {
@@ -215,8 +352,12 @@ extern "C" __global__ void computeDistRest(
         }
         
         if ((doing_eco == true) && (eco_value > 0.0)) { // make sure we want to do eco and that the eco value is positive
-          energy *= (eco_factor / eco_value); // ECO adjustments here
-          dEdR *= (eco_factor / eco_value);
+          eco_multiple = (eco_constant + eco_linear*eco_value + eco_factor / eco_value);
+          if (eco_multiple < 0.0) {
+            eco_multiple = 0.0; // we don't want a force driving things apart
+          }
+          //energy *= eco_multiple; // ECO adjustments here
+          dEdR *=   eco_multiple;
         }
 
         assert(isfinite(energy));

@@ -42,6 +42,8 @@ public:
      */
 
     void calcEcoValues();
+    
+    void testEverythingEco();
 
     double execute(OpenMM::ContextImpl& context, bool includeForces, bool includeEnergy);
 
@@ -61,6 +63,9 @@ private:
     int numCollections;
     float ecoCutoff;
     int numResidues;
+    int INF;
+    //long int timevar; // a convenient variable to keep track of time
+    //long int timecount; 
     int largestGroup;
     int largestCollection;
     int groupsPerBlock;
@@ -81,6 +86,12 @@ private:
     CUfunction applyTorsProfileRestKernel;
     CUfunction computeContactsKernel;
     CUfunction computeEdgeListKernel;
+    CUfunction dijkstra_initializeKernel;
+    CUfunction dijkstra_save_old_vectorsKernel;
+    CUfunction dijkstra_settle_and_updateKernel;
+    CUfunction dijkstra_log_reduceKernel;
+    CUfunction assignRestEcoKernel;
+    CUfunction test_get_alpha_carbon_posqKernel;
 
     /**
      * Arrays for distance restraints
@@ -99,10 +110,23 @@ private:
     OpenMM::CudaArray* distanceRestEcoFactors;      // bool to hold eco factors
     std::vector<float> h_distanceRestEcoFactors;
     
-    OpenMM::CudaArray* distanceRestEcoValues;      // bool to hold eco values
+    OpenMM::CudaArray* distanceRestEcoConstants;      // bool to hold eco factors
+    std::vector<float> h_distanceRestEcoConstants;
+    
+    OpenMM::CudaArray* distanceRestEcoLinears;      // bool to hold eco factors
+    std::vector<float> h_distanceRestEcoLinears;
+    
+    OpenMM::CudaArray* distanceRestEcoValues;      // float to hold eco values
+    std::vector<float> h_distanceRestEcoValues;
+    
+    //OpenMM::CudaArray* distanceRestCOValues;      // float to hold CO (contact order) values PROBLEM: debug later
+    std::vector<float> h_distanceRestCOValues;
 
     OpenMM::CudaArray* distanceRestAtomIndices;   // int2 to hold i,j
     std::vector<int2> h_distanceRestAtomIndices;
+    
+    OpenMM::CudaArray* distanceRestResidueIndices;   // int2 to hold i,j
+    std::vector<int2> h_distanceRestResidueIndices;
 
     OpenMM::CudaArray* distanceRestGlobalIndices; // int to hold the global index for this restraint
     std::vector<int> h_distanceRestGlobalIndices;
@@ -116,9 +140,31 @@ private:
     OpenMM::CudaArray* alphaCarbons; // Indices of alpha carbons
     std::vector<int> h_alphaCarbons;
     
+    //OpenMM::CudaArray* alphaCarbonPosq;
+    //std::vector<float> h_alphaCarbonPosq; // atomic positions of alpha carbons
+    
+    std::vector<int> h_dijkstra_unexplored;
+    std::vector<int> h_dijkstra_unexplored_old;
+    std::vector<int> h_dijkstra_frontier;
+    std::vector<int> h_dijkstra_frontier_old;
+    std::vector<int> h_dijkstra_n_explored;
+    std::vector<int> h_dijkstra_n_explored_old;
+    
+    std::vector<int> h_distRestSorted;
+    
     std::vector<int> h_distanceRestContacts;
     std::vector<int> h_distanceRestEdgeCounts;
-
+    std::vector<int> h_dijkstra_total;
+    std::vector<int> h_dijkstra_distance;
+    std::vector<int> h_dijkstra_distance2;
+    
+    OpenMM::CudaArray* dijkstra_unexplored;
+    OpenMM::CudaArray* dijkstra_unexplored_old;
+    OpenMM::CudaArray* dijkstra_frontier;
+    OpenMM::CudaArray* dijkstra_frontier_old;
+    OpenMM::CudaArray* dijkstra_distance;
+    OpenMM::CudaArray* dijkstra_n_explored;
+    OpenMM::CudaArray* dijkstra_total;
     /**
      * Arrays for hyperbolic distance restraints
      *

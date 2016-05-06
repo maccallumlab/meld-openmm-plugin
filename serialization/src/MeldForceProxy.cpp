@@ -25,9 +25,9 @@ void MeldForceProxy::serialize(const void* object, SerializationNode& node) cons
         int atom1, atom2, globalIndex;
         float r1, r2, r3, r4, forceConstant;
         bool doing_eco;
-        float eco_factor;
+        float eco_factor, eco_constant, eco_linear;
         int res_index1, res_index2;
-        force.getDistanceRestraintParams(i, atom1, atom2, r1, r2, r3, r4, forceConstant, doing_eco, eco_factor, res_index1, res_index2, globalIndex);
+        force.getDistanceRestraintParams(i, atom1, atom2, r1, r2, r3, r4, forceConstant, doing_eco, eco_factor, eco_constant, eco_linear, res_index1, res_index2, globalIndex);
         SerializationNode& dr = distanceRestraints.createChildNode("DistanceRestraint");
         dr.setIntProperty("atom1", atom1);
         dr.setIntProperty("atom2", atom2);
@@ -38,6 +38,8 @@ void MeldForceProxy::serialize(const void* object, SerializationNode& node) cons
         dr.setDoubleProperty("forceConstant", forceConstant);
         dr.setBoolProperty("doing_eco", doing_eco);
         dr.setDoubleProperty("eco_factor", eco_factor);
+        dr.setDoubleProperty("eco_constant", eco_constant);
+        dr.setDoubleProperty("eco_linear", eco_linear);
         dr.setIntProperty("res_index1", res_index1);
         dr.setIntProperty("res_index2", res_index2);
         dr.setIntProperty("globalIndex", globalIndex);
@@ -253,9 +255,11 @@ void* MeldForceProxy::deserialize(const SerializationNode& node) const {
             float forceConstant = dr.getDoubleProperty("forceConstant");
             bool doing_eco = dr.getBoolProperty("doing_eco");
             float eco_factor = dr.getDoubleProperty("eco_factor");
+            float eco_constant = dr.getDoubleProperty("eco_constant");
+            float eco_linear = dr.getDoubleProperty("eco_linear");
             int res_index1 = dr.getIntProperty("res_index1");
             int res_index2 = dr.getIntProperty("res_index2");
-            force->addDistanceRestraint(atom1, atom2, r1, r2, r3, r4, forceConstant, doing_eco, eco_factor, res_index1, res_index2);
+            force->addDistanceRestraint(atom1, atom2, r1, r2, r3, r4, forceConstant, doing_eco, eco_factor, eco_constant, eco_linear, res_index1, res_index2);
         }
 
         // deserialize torsion restraints
