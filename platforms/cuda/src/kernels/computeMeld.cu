@@ -323,7 +323,8 @@ extern "C" __global__ void computeDistRest(
         float dEdR = 0.0;
         float diff = 0.0;
         float diff2 = 0.0;
-        float eco_multiple = 0.0;
+        float force_eco_multiple = 0.0;
+        float energy_eco_multiple = 0.0;
         float3 f;
 
         if(r < r1) {
@@ -352,12 +353,16 @@ extern "C" __global__ void computeDistRest(
         }
         
         if ((doing_eco == true) && (eco_value > 0.0)) { // make sure we want to do eco and that the eco value is positive
-          eco_multiple = (eco_constant + eco_linear*eco_value + eco_factor / eco_value);
-          if (eco_multiple < 0.0) {
-            eco_multiple = 0.0; // we don't want a force driving things apart
+          force_eco_multiple =  (eco_constant + eco_factor / eco_value);
+          energy_eco_multiple = (eco_constant + eco_linear*eco_value + eco_factor / eco_value);
+          if (force_eco_multiple < 0.0) {
+            force_eco_multiple = 0.0; // we don't want a force driving things apart
           }
-          //energy *= eco_multiple; // ECO adjustments here
-          dEdR *=   eco_multiple;
+          if (energy_eco_multiple < 0.0) {
+            energy_eco_multiple = 0.0; // we don't want a force driving things apart
+          }
+          energy *= energy_eco_multiple; // ECO adjustments here
+          dEdR   *= force_eco_multiple;
         }
 
         assert(isfinite(energy));
