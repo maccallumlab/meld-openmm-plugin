@@ -206,8 +206,8 @@ void CudaCalcMeldForceKernel::allocateMemory(const MeldForce& force) {
     ecoCutoff = force.getEcoCutoff();
     numResidues = force.getNumResidues();
     INF = 9999;
-    //timevar = 0;
-    //timecount = 0;
+    timevar = 0;
+    timecount = 0;
 
     // setup device memory
     if (numDistRestraints > 0) {
@@ -869,7 +869,16 @@ void CudaCalcMeldForceKernel::copyParametersToContext(ContextImpl& context, cons
 void CudaCalcMeldForceKernel::calcEcoValues() {
   int counter;
   int counter2;
+  int src = -1; // so the pathfinding algorithm is run with the first restraint
+  int dest = 0;
+  int num_explored = 1;
+  struct timeval endtime;
+  long int starttime;
+  long int timediff;
+  long int timesum = 0;
+  long int timecount = 0;
   
+  gettimeofday(&endtime, NULL);
     void* contactsArgs[] = {
 	&cu.getPosq().getDevicePointer(),
 	&distanceRestAtomIndices->getDevicePointer(),
@@ -905,9 +914,8 @@ void CudaCalcMeldForceKernel::calcEcoValues() {
   
   // for each of the restraints, do the following...
   counter = 0;
-  int src = -1; // so the pathfinding algorithm is run with the first restraint
-  int dest = 0;
-  int num_explored = 1;
+  
+  
   
   // Define all the arguments by reference that will be passed to the CUDA kernels
     void* dijkstra_initializeArgs[] = {
@@ -952,9 +960,12 @@ void CudaCalcMeldForceKernel::calcEcoValues() {
   
   int rest_index;
   
-  //distanceRestEcoValuesstruct timeval starttime, endtime;
-  //long int timediff;                  // Several variables used for time analysis
-  //gettimeofday(&starttime, NULL);
+  /*
+  starttime = endtime.tv_usec;
+  gettimeofday(&endtime, NULL);
+  timediff = (long int)(endtime.tv_usec) - starttime;
+  cout << "Time to compute input arguments: " << timediff << "\n";
+  gettimeofday(&endtime, NULL);*/
   
   for (counter = 0; counter < numDistRestraints; counter++) {
     
@@ -966,24 +977,25 @@ void CudaCalcMeldForceKernel::calcEcoValues() {
     }
     cout << "\n"; */
     //cout << "counter: " << counter << " rest_index: " << rest_index << " h_distanceRestResidueIndices[rest_index].x: " << h_distanceRestResidueIndices[rest_index].x << "\n";
-    if (h_distanceRestResidueIndices[rest_index].x > src) { // if we have a new source for this restraint (since they're sorted)
+    if ((h_distanceRestResidueIndices[rest_index].x > src) && (h_distanceRestDoingEco[rest_index] == 1)) { // if we have a new source for this restraint (since they're sorted)
       src = h_distanceRestResidueIndices[rest_index].x; // then update this source index and rerun Dijkstra
       //cout << "now on source: " << src << ". Rerunning Dijkstra's\n";
       
       cu.executeKernel(dijkstra_initializeKernel, dijkstra_initializeArgs, numResidues); // initialize Dijkstra variables
       counter2 = 0;
       num_explored = 1; // the source at least has been explored
-      while ((counter2 <= numResidues) && (num_explored < numResidues)) {
+      while ((counter2 <= 5) && (num_explored < numResidues)) { // (counter2 <= numResidues-1)
         cu.executeKernel(dijkstra_save_old_vectorsKernel, dijkstra_save_oldArgs, numResidues); // save the old arrays from the past step
         cu.executeKernel(dijkstra_settle_and_updateKernel, dijkstra_settle_and_updateArgs, numResidues); // update exploration values
-        cu.executeKernel(dijkstra_log_reduceKernel, dijkstra_log_reduceArgs, numResidues); // efficiently determine how many were explored
+        //cu.executeKernel(dijkstra_log_reduceKernel, dijkstra_log_reduceArgs, numResidues); // efficiently determine how many were explored
         //cout << "mark20\n";
-        dijkstra_total->download(h_dijkstra_total); // pull the number of explored residues to the CPU
+        //dijkstra_total->download(h_dijkstra_total); // pull the number of explored residues to the CPU
         //cout << "mark21\n";
-        num_explored += h_dijkstra_total[0]; // increment the total number explored
+        //num_explored += h_dijkstra_total[0]; // increment the total number explored
         //cout << "num_explored:" << num_explored << "\n";
         counter2++;
       }
+      
       //dijkstra_distance->download(h_dijkstra_distance); // NOTE: Remove???
       cu.executeKernel(assignRestEcoKernel, assignRestEcoArgs, numDistRestraints); // give each distance restraint its ECO value
       /*cout << "Distance vector from src: " << src << "\n";
@@ -992,15 +1004,19 @@ void CudaCalcMeldForceKernel::calcEcoValues() {
       }
       cout << "\n"; */
     }
-    dest = h_distanceRestResidueIndices[rest_index].y; // NOTE: remove?
+    //dest = h_distanceRestResidueIndices[rest_index].y; // NOTE: remove?
     //cout << "eco for src: " << src << " dest: " << dest << " dist:" << h_dijkstra_distance[dest] << "\n";
   }
   //cout << "End\n"; 
   
-  //gettimeofday(&endtime, NULL);
-  //timediff = (long int)(endtime.tv_usec) - (long int)(starttime.tv_usec);
-  //cout << "timediff: " << timediff << "\n";
+  //cout << "Average time to settle: " << timevar / timecount << "\n";
   
+  /*
+  starttime = endtime.tv_usec;
+  gettimeofday(&endtime, NULL);
+  timediff = (long int)(endtime.tv_usec) - starttime;
+  cout << "Time to do Dijkstra for all restraints: " << timediff << "\n";
+  */
   
 }
 
@@ -1155,9 +1171,15 @@ void CudaCalcMeldForceKernel::testEverythingEco() {
 
 double CudaCalcMeldForceKernel::execute(ContextImpl& context, bool includeForces, bool includeEnergy) {
     // compute the forces and energies
+    int oldtime = timevar; // save the old timestamp
+    struct timeval newtime;
+    gettimeofday(&newtime, NULL);
+    timevar = (long int)(newtime.tv_usec);
+    
+    cout << "TIME ELAPSED: " << timevar - oldtime << "\n";
     int counter;
     if (numDistRestraints > 0) {
-        calcEcoValues(); // calculate the graph that will be used in the ECO calcs
+        //calcEcoValues(); // calculate the graph that will be used in the ECO calcs
         //testEverythingEco(); // comment out this line in the final production version
         void* distanceArgs[] = {
             &cu.getPosq().getDevicePointer(),
@@ -1176,15 +1198,16 @@ double CudaCalcMeldForceKernel::execute(ContextImpl& context, bool includeForces
             &numDistRestraints}; // this is getting the reference pointer for each of these arrays
         cu.executeKernel(computeDistRestKernel, distanceArgs, numDistRestraints);
     }
-    //distanceRestEcoValues->download(h_distanceRestEcoValues);
+    /*
+    distanceRestEcoValues->download(h_distanceRestEcoValues);
     //distanceRestCOValues->download(h_distanceRestCOValues);
     
-    /*cout << "ECO values per restraint: ";
+    cout << "ECO values per restraint: ";
     for (counter = 0; counter < numDistRestraints; counter++) {
       cout << h_distanceRestResidueIndices[counter].x << "-" << h_distanceRestResidueIndices[counter].y << ":" << h_distanceRestEcoValues[counter] << " ";
     }
-    cout << "\n";*/
-    
+    cout << "\n";
+    */
     if (numHyperbolicDistRestraints > 0) {
         void* hyperbolicDistanceArgs[] = {
             &cu.getPosq().getDevicePointer(),

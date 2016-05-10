@@ -64,8 +64,8 @@ private:
     float ecoCutoff;
     int numResidues;
     int INF;
-    //long int timevar; // a convenient variable to keep track of time
-    //long int timecount; 
+    long int timevar; // a convenient variable to keep track of time
+    long int timecount; 
     int largestGroup;
     int largestCollection;
     int groupsPerBlock;

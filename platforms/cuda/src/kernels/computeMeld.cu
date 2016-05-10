@@ -148,10 +148,10 @@ extern "C" __global__ void test_get_alpha_carbon_posq(const real4* __restrict__ 
 }
 
 
-extern "C" __global__ void dijkstra_initialize(bool* unexplored,
-                                           bool* frontier,
-                                           int* distance,
-                                           int* n_explored,
+extern "C" __global__ void dijkstra_initialize(bool* __restrict__ unexplored,
+                                           bool* __restrict__ frontier,
+                                           int* __restrict__ distance,
+                                           int* __restrict__ n_explored,
                                            int src,
                                            int LARGE,
                                            int n_nodes)
@@ -171,10 +171,10 @@ extern "C" __global__ void dijkstra_initialize(bool* unexplored,
   }
 }
 
-extern "C" __global__ void dijkstra_save_old_vectors(bool* unexplored,
-                                           bool* unexplored_old,
-                                           bool* frontier,
-                                           bool* frontier_old,
+extern "C" __global__ void dijkstra_save_old_vectors(bool* __restrict__ unexplored,
+                                           bool* __restrict__ unexplored_old,
+                                           bool* __restrict__ frontier,
+                                           bool* __restrict__ frontier_old,
                                            int n_nodes)
 {
   // back up the old arrays to be used by the next iteration of the Dijkstra algorithm
@@ -185,7 +185,7 @@ extern "C" __global__ void dijkstra_save_old_vectors(bool* unexplored,
   }
 }
 
-extern "C" __global__ void dijkstra_settle_and_update(bool* unexplored,
+extern "C" __global__ void dijkstra_settle_and_update(bool* __restrict__ unexplored,
                                            bool* unexplored_old,
                                            bool* frontier,
                                            bool* frontier_old,
@@ -201,7 +201,7 @@ extern "C" __global__ void dijkstra_settle_and_update(bool* unexplored,
   int j;
   int edge_index;
   int head;
-  if (index < n_nodes) {
+  //if (index < n_nodes) {
     n_explored[index] = 0;
     if (unexplored_old[index] == true) { // this node has been unexplored
       for (j=0; j<edge_counts[index]; j++) { // loop thru the nodes that lead to this one 
@@ -213,9 +213,18 @@ extern "C" __global__ void dijkstra_settle_and_update(bool* unexplored,
           distance[index] = num_iter + 1; // the number of iterations we've needed to find me is the distance
           n_explored[index]=1;
         }
+        
+        /*frontier[index] = frontier_old[head];
+        unexplored[index] = !frontier_old[head];
+        distance[index] = distance[index]*!frontier_old[head] + (num_iter+1)*frontier_old[head];
+        n_explored[index]=1;*/
       }
     }
-  }
+    
+    // Is there some way to reduce this to an arithmetic operation?
+    
+    
+  //}
 
 }
 
