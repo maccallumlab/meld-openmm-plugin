@@ -512,7 +512,8 @@ void CudaCalcMeldForceKernel::setupDistanceRestraints(const MeldForce& force) {
     for (int i = 0; i < numDistRestraints; i++) {
       h_distRestSorted[i*3] = force.getDistRestSorted()[i*3];
       h_distRestSorted[i*3+1] = force.getDistRestSorted()[i*3+1];
-      cout << h_distRestSorted[i*3] << "-" << h_distRestSorted[i*3 + 1] << " ";
+      h_distRestSorted[i*3+2] = force.getDistRestSorted()[i*3+2];
+      cout << h_distRestSorted[i*3] << "-" << h_distRestSorted[i*3 + 1] << ":" << h_distRestSorted[i*3 + 2] << " ";
     }
     cout << "\n";
     
@@ -958,12 +959,13 @@ void CudaCalcMeldForceKernel::calcEcoValues() {
   for (counter = 0; counter < numDistRestraints; counter++) {
     
     rest_index = h_distRestSorted[counter*3 + 2]; // the index of the distance restraint that we are computing ECO for
-    //cout << "rest_index: " << rest_index << " ";
-    /*
-    if (h_distanceRestDoingEco[rest_index] == true) {
-      cout << h_distanceRestResidueIndices[rest_index].x << "-" << h_distanceRestResidueIndices[rest_index].y << ", ";
+    
+    /*cout << "h_distRestSorted:\n";
+    for (counter2 = 0; counter2 < numDistRestraints; counter2++) {
+      cout << h_distRestSorted[counter2*3] << "-" << h_distRestSorted[counter2*3 + 1] << "-" << h_distRestSorted[counter2*3 + 2] << " ";
     }
-    cout << "\n";*/
+    cout << "\n"; */
+    //cout << "counter: " << counter << " rest_index: " << rest_index << " h_distanceRestResidueIndices[rest_index].x: " << h_distanceRestResidueIndices[rest_index].x << "\n";
     if (h_distanceRestResidueIndices[rest_index].x > src) { // if we have a new source for this restraint (since they're sorted)
       src = h_distanceRestResidueIndices[rest_index].x; // then update this source index and rerun Dijkstra
       //cout << "now on source: " << src << ". Rerunning Dijkstra's\n";
@@ -971,16 +973,18 @@ void CudaCalcMeldForceKernel::calcEcoValues() {
       cu.executeKernel(dijkstra_initializeKernel, dijkstra_initializeArgs, numResidues); // initialize Dijkstra variables
       counter2 = 0;
       num_explored = 1; // the source at least has been explored
-      while ((counter2 <= numResidues - 1) && (num_explored < numResidues)) {
+      while ((counter2 <= numResidues) && (num_explored < numResidues)) {
         cu.executeKernel(dijkstra_save_old_vectorsKernel, dijkstra_save_oldArgs, numResidues); // save the old arrays from the past step
         cu.executeKernel(dijkstra_settle_and_updateKernel, dijkstra_settle_and_updateArgs, numResidues); // update exploration values
         cu.executeKernel(dijkstra_log_reduceKernel, dijkstra_log_reduceArgs, numResidues); // efficiently determine how many were explored
+        //cout << "mark20\n";
         dijkstra_total->download(h_dijkstra_total); // pull the number of explored residues to the CPU
+        //cout << "mark21\n";
         num_explored += h_dijkstra_total[0]; // increment the total number explored
         //cout << "num_explored:" << num_explored << "\n";
         counter2++;
       }
-      //dijkstra_distance->download(h_dijkstra_distance); // NOTE: Remove???
+      dijkstra_distance->download(h_dijkstra_distance); // NOTE: Remove???
       cu.executeKernel(assignRestEcoKernel, assignRestEcoArgs, numDistRestraints); // give each distance restraint its ECO value
       /*cout << "Distance vector from src: " << src << "\n";
       for (counter2 = 0; counter2 < numResidues; counter2++) {
@@ -991,6 +995,7 @@ void CudaCalcMeldForceKernel::calcEcoValues() {
     dest = h_distanceRestResidueIndices[rest_index].y; // NOTE: remove?
     //cout << "eco for src: " << src << " dest: " << dest << " dist:" << h_dijkstra_distance[dest] << "\n";
   }
+  //cout << "End\n"; 
   
   //gettimeofday(&endtime, NULL);
   //timediff = (long int)(endtime.tv_usec) - (long int)(starttime.tv_usec);
@@ -1173,13 +1178,13 @@ double CudaCalcMeldForceKernel::execute(ContextImpl& context, bool includeForces
     }
     //distanceRestEcoValues->download(h_distanceRestEcoValues);
     //distanceRestCOValues->download(h_distanceRestCOValues);
-    /*
-    cout << "CO values per restraint: ";
+    
+    /*cout << "ECO values per restraint: ";
     for (counter = 0; counter < numDistRestraints; counter++) {
-      cout << h_distanceRestResidueIndices[counter].x << "-" << h_distanceRestResidueIndices[counter].y << ":" << h_distanceRestCOValues[counter] << " ";
+      cout << h_distanceRestResidueIndices[counter].x << "-" << h_distanceRestResidueIndices[counter].y << ":" << h_distanceRestEcoValues[counter] << " ";
     }
-    cout << "\n";
-    */
+    cout << "\n";*/
+    
     if (numHyperbolicDistRestraints > 0) {
         void* hyperbolicDistanceArgs[] = {
             &cu.getPosq().getDevicePointer(),
