@@ -984,7 +984,7 @@ void CudaCalcMeldForceKernel::calcEcoValues() {
         //cout << "num_explored:" << num_explored << "\n";
         counter2++;
       }
-      dijkstra_distance->download(h_dijkstra_distance); // NOTE: Remove???
+      //dijkstra_distance->download(h_dijkstra_distance); // NOTE: Remove???
       cu.executeKernel(assignRestEcoKernel, assignRestEcoArgs, numDistRestraints); // give each distance restraint its ECO value
       /*cout << "Distance vector from src: " << src << "\n";
       for (counter2 = 0; counter2 < numResidues; counter2++) {
