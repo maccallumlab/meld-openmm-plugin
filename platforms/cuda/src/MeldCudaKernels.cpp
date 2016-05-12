@@ -1172,11 +1172,11 @@ void CudaCalcMeldForceKernel::testEverythingEco() {
 double CudaCalcMeldForceKernel::execute(ContextImpl& context, bool includeForces, bool includeEnergy) {
     // compute the forces and energies
     int oldtime = timevar; // save the old timestamp
-    struct timeval newtime;
-    gettimeofday(&newtime, NULL);
-    timevar = (long int)(newtime.tv_usec);
+    //struct timeval newtime;
+    //gettimeofday(&newtime, NULL);
+    //timevar = (long int)(newtime.tv_usec);
     
-    cout << "TIME ELAPSED: " << timevar - oldtime << "\n";
+    //cout << "TIME ELAPSED: " << timevar - oldtime << "\n";
     int counter;
     if (numDistRestraints > 0) {
         //calcEcoValues(); // calculate the graph that will be used in the ECO calcs
