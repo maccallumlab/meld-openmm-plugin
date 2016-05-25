@@ -264,6 +264,7 @@ private:
      * Each array has size numRestraints
      */
     OpenMM::CudaArray* restraintEnergies;           // energy for each restraint
+    std::vector<float> h_restraintEnergies;
 
     OpenMM::CudaArray* restraintActive;             // is this restraint active?
 

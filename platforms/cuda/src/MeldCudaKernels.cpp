@@ -299,6 +299,7 @@ void CudaCalcMeldForceKernel::allocateMemory(const MeldForce& force) {
     h_distanceRestCOValues                = std::vector<float>  (numDistRestraints, 0);
     h_alphaCarbons                        = std::vector<int>    (numResidues, 0);
     h_distRestSorted                      = std::vector<int>    (numDistRestraints * 3, 0);
+h_restraintEnergies                       = std::vector<float>    (numRestraints, 0);
 h_distanceRestContacts                    = std::vector<int>    (numResidues*numResidues, 0);
 h_distanceRestEdgeCounts                  = std::vector<int>    (numResidues, 0);
 h_dijkstra_total                          = std::vector<int>    (1, 0);
@@ -1179,7 +1180,7 @@ double CudaCalcMeldForceKernel::execute(ContextImpl& context, bool includeForces
     //cout << "TIME ELAPSED: " << timevar - oldtime << "\n";
     int counter;
     if (numDistRestraints > 0) {
-        //calcEcoValues(); // calculate the graph that will be used in the ECO calcs
+        calcEcoValues(); // calculate the graph that will be used in the ECO calcs
         //testEverythingEco(); // comment out this line in the final production version
         void* distanceArgs[] = {
             &cu.getPosq().getDevicePointer(),
@@ -1198,16 +1199,27 @@ double CudaCalcMeldForceKernel::execute(ContextImpl& context, bool includeForces
             &numDistRestraints}; // this is getting the reference pointer for each of these arrays
         cu.executeKernel(computeDistRestKernel, distanceArgs, numDistRestraints);
     }
+    
     /*
     distanceRestEcoValues->download(h_distanceRestEcoValues);
-    //distanceRestCOValues->download(h_distanceRestCOValues);
+    distanceRestCOValues->download(h_distanceRestCOValues);
     
     cout << "ECO values per restraint: ";
     for (counter = 0; counter < numDistRestraints; counter++) {
       cout << h_distanceRestResidueIndices[counter].x << "-" << h_distanceRestResidueIndices[counter].y << ":" << h_distanceRestEcoValues[counter] << " ";
     }
     cout << "\n";
+    
+    
+    restraintEnergies->download(h_restraintEnergies);
+    
+    cout << "ECO modified Energy per restraint: ";
+    for (counter = 0; counter < numDistRestraints; counter++) {
+      cout << counter << ": energy:" << h_restraintEnergies[h_distanceRestGlobalIndices[counter]] << " ECO value: " << h_distanceRestEcoValues[counter] << " doing:" << h_distanceRestDoingEco[counter] << "     ";
+    }
+    cout << "\n";
     */
+    
     if (numHyperbolicDistRestraints > 0) {
         void* hyperbolicDistanceArgs[] = {
             &cu.getPosq().getDevicePointer(),

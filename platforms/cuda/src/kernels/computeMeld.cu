@@ -361,6 +361,7 @@ extern "C" __global__ void computeDistRest(
             dEdR = k * (r4 - r3);
         }
         
+        
         if ((doing_eco == true) && (eco_value > 0.0)) { // make sure we want to do eco and that the eco value is positive
           force_eco_multiple =  (eco_constant + eco_factor / eco_value);
           energy_eco_multiple = (eco_constant + eco_linear*eco_value + eco_factor / eco_value);
