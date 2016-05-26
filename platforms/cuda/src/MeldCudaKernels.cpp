@@ -112,6 +112,7 @@ CudaCalcMeldForceKernel::CudaCalcMeldForceKernel(std::string name, const Platfor
     torsProfileRestGlobalIndices = NULL;
     torsProfileRestForces = NULL;
     restraintEnergies = NULL;
+    nonECOrestraintEnergies = NULL;
     restraintActive = NULL;
     groupRestraintIndices = NULL;
     groupRestraintIndicesTemp = NULL;
@@ -179,6 +180,7 @@ CudaCalcMeldForceKernel::~CudaCalcMeldForceKernel() {
     delete torsProfileRestGlobalIndices;
     delete torsProfileRestForces;
     delete restraintEnergies;
+    delete nonECOrestraintEnergies;
     delete restraintActive;
     delete groupRestraintIndices;
     delete groupRestraintIndicesTemp;
@@ -277,6 +279,7 @@ void CudaCalcMeldForceKernel::allocateMemory(const MeldForce& force) {
     }
 
     restraintEnergies         = CudaArray::create<float>  ( cu, numRestraints,     "restraintEnergies");
+    nonECOrestraintEnergies   = CudaArray::create<float>  ( cu, numRestraints,     "nonECOrestraintEnergies");
     restraintActive           = CudaArray::create<float>  ( cu, numRestraints,     "restraintActive");
     groupRestraintIndices     = CudaArray::create<int>    ( cu, numRestraints,     "groupRestraintIndices");
     groupRestraintIndicesTemp = CudaArray::create<int>    ( cu, numRestraints,     "groupRestraintIndicesTemp");
@@ -296,10 +299,11 @@ void CudaCalcMeldForceKernel::allocateMemory(const MeldForce& force) {
     h_distanceRestEcoFactors              = std::vector<float>  (numDistRestraints, 0);
     h_distanceRestEcoConstants            = std::vector<float>  (numDistRestraints, 0);
     h_distanceRestEcoLinears              = std::vector<float>  (numDistRestraints, 0);
-    h_distanceRestCOValues                = std::vector<float>  (numDistRestraints, 0);
+    //h_distanceRestCOValues                = std::vector<float>  (numDistRestraints, 0);
     h_alphaCarbons                        = std::vector<int>    (numResidues, 0);
     h_distRestSorted                      = std::vector<int>    (numDistRestraints * 3, 0);
 h_restraintEnergies                       = std::vector<float>    (numRestraints, 0);
+h_restraintNonEcoEnergies                       = std::vector<float>    (numRestraints, 0);
 h_distanceRestContacts                    = std::vector<int>    (numResidues*numResidues, 0);
 h_distanceRestEdgeCounts                  = std::vector<int>    (numResidues, 0);
 h_dijkstra_total                          = std::vector<int>    (1, 0);
@@ -493,7 +497,8 @@ void CudaCalcMeldForceKernel::setupDistanceRestraints(const MeldForce& force) {
         h_distanceRestEcoFactors[i] = eco_factor;
         h_distanceRestEcoConstants[i] = eco_constant;
         h_distanceRestEcoLinears[i] = eco_linear;
-        h_distanceRestCOValues[i] = abs((float)res_index2 - (float)res_index1); // compute the true contact order
+        //h_distanceRestCOValues[i] = abs((float)res_index2 - (float)res_index1); // compute the true contact order
+        //cout << "res_index1:" << res_index1 << " res_index2:" << res_index2 << " CO:" << h_distanceRestCOValues[i] << "\n";
 
         //h_distanceRestEcoValues[i] = 1.0; // LANE: we need to have the MELD code fill this value with the eco between the two atoms of this restraint
 
@@ -730,6 +735,7 @@ void CudaCalcMeldForceKernel::setupCollections(const MeldForce& force) {
 
 
 void CudaCalcMeldForceKernel::validateAndUpload() {
+    int counter;
     if (numDistRestraints > 0) {
         distanceRestRParams->upload(h_distanceRestRParams);
         distanceRestKParams->upload(h_distanceRestKParams);
@@ -743,7 +749,15 @@ void CudaCalcMeldForceKernel::validateAndUpload() {
         distanceRestResidueIndices->upload(h_distanceRestResidueIndices);
         distanceRestGlobalIndices->upload(h_distanceRestGlobalIndices);
     }
-
+    
+    /*
+    cout << "CO values:\n";
+    for (counter=0; counter < numDistRestraints; counter++) {
+      cout << counter << ":" << h_distanceRestCOValues[counter] << " ";
+    }
+    cout << "\n";
+    */
+    
     if (numHyperbolicDistRestraints > 0) {
         hyperbolicDistanceRestRParams->upload(h_hyperbolicDistanceRestRParams);
         hyperbolicDistanceRestParams->upload(h_hyperbolicDistanceRestParams);
@@ -1185,6 +1199,7 @@ double CudaCalcMeldForceKernel::execute(ContextImpl& context, bool includeForces
         void* distanceArgs[] = {
             &cu.getPosq().getDevicePointer(),
             &distanceRestAtomIndices->getDevicePointer(),
+            &distanceRestResidueIndices->getDevicePointer(),
             &distanceRestRParams->getDevicePointer(),
             &distanceRestKParams->getDevicePointer(),
             &distanceRestDoingEco->getDevicePointer(), 
@@ -1195,6 +1210,7 @@ double CudaCalcMeldForceKernel::execute(ContextImpl& context, bool includeForces
             //&distanceRestCOValues->getDevicePointer(),
             &distanceRestGlobalIndices->getDevicePointer(),
             &restraintEnergies->getDevicePointer(),
+            &nonECOrestraintEnergies->getDevicePointer(),
             &distanceRestForces->getDevicePointer(),
             &numDistRestraints}; // this is getting the reference pointer for each of these arrays
         cu.executeKernel(computeDistRestKernel, distanceArgs, numDistRestraints);
@@ -1202,20 +1218,20 @@ double CudaCalcMeldForceKernel::execute(ContextImpl& context, bool includeForces
     
     /*
     distanceRestEcoValues->download(h_distanceRestEcoValues);
-    distanceRestCOValues->download(h_distanceRestCOValues);
+    //distanceRestCOValues->download(h_distanceRestCOValues);
     
     cout << "ECO values per restraint: ";
     for (counter = 0; counter < numDistRestraints; counter++) {
       cout << h_distanceRestResidueIndices[counter].x << "-" << h_distanceRestResidueIndices[counter].y << ":" << h_distanceRestEcoValues[counter] << " ";
     }
     cout << "\n";
-    
-    
+    /*
     restraintEnergies->download(h_restraintEnergies);
+    nonECOrestraintEnergies->download(h_restraintNonEcoEnergies);
     
-    cout << "ECO modified Energy per restraint: ";
-    for (counter = 0; counter < numDistRestraints; counter++) {
-      cout << counter << ": energy:" << h_restraintEnergies[h_distanceRestGlobalIndices[counter]] << " ECO value: " << h_distanceRestEcoValues[counter] << " doing:" << h_distanceRestDoingEco[counter] << "     ";
+    cout << "ECO unmodified Energy per restraint: ";
+    for (counter = 0; counter < numRestraints; counter++) {
+      cout << counter << " modified: " << h_restraintEnergies[counter] << " original: " << h_restraintNonEcoEnergies[counter] << " ";
     }
     cout << "\n";
     */
@@ -1331,6 +1347,7 @@ double CudaCalcMeldForceKernel::execute(ContextImpl& context, bool includeForces
             &distanceRestGlobalIndices->getDevicePointer(),
             &distanceRestForces->getDevicePointer(),
             &restraintEnergies->getDevicePointer(),
+            &nonECOrestraintEnergies->getDevicePointer(),
             &restraintActive->getDevicePointer(),
             &numDistRestraints};
         cu.executeKernel(applyDistRestKernel, applyDistRestArgs, numDistRestraints);

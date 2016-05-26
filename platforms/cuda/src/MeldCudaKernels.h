@@ -120,7 +120,7 @@ private:
     std::vector<float> h_distanceRestEcoValues;
     
     //OpenMM::CudaArray* distanceRestCOValues;      // float to hold CO (contact order) values PROBLEM: debug later
-    std::vector<float> h_distanceRestCOValues;
+    //std::vector<float> h_distanceRestCOValues;
 
     OpenMM::CudaArray* distanceRestAtomIndices;   // int2 to hold i,j
     std::vector<int2> h_distanceRestAtomIndices;
@@ -264,7 +264,9 @@ private:
      * Each array has size numRestraints
      */
     OpenMM::CudaArray* restraintEnergies;           // energy for each restraint
+    OpenMM::CudaArray* nonECOrestraintEnergies;     // energy for each restraint NOT scaled by ECO
     std::vector<float> h_restraintEnergies;
+    std::vector<float> h_restraintNonEcoEnergies;
 
     OpenMM::CudaArray* restraintActive;             // is this restraint active?
 
