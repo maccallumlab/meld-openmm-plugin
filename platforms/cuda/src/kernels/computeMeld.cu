@@ -289,7 +289,7 @@ if (tx < num_nodes) {
 extern "C" __global__ void computeDistRest(
                             const real4* __restrict__ posq,             // positions and charges
                             const int2* __restrict__ atomIndices,       // pair of atom indices
-                            const int2* __restrict__ residueIndices,
+                            //const int2* __restrict__ residueIndices,
                             const float4* __restrict__ distanceBounds,  // r1, r2, r3, r4
                             const float* __restrict__ forceConstants,   // k
                             const int* __restrict__ doing_ecos,          // doing_eco
@@ -300,7 +300,7 @@ extern "C" __global__ void computeDistRest(
                             //float* __restrict__ co_values,          // the CO values (contact order)
                             int* __restrict__ indexToGlobal,            // array of indices into global arrays
                             float* __restrict__ energies,               // global array of restraint energies
-                            float* __restrict__ nonECOenergies,         // global array of non-ECO-modified restraint energies
+                            //float* __restrict__ nonECOenergies,         // global array of non-ECO-modified restraint energies
                             float3* __restrict__ forceBuffer,           // temporary buffer to hold the force
                             const int numRestraints) {
     for (int index=blockIdx.x*blockDim.x+threadIdx.x; index<numRestraints; index+=blockDim.x*gridDim.x) {
@@ -321,7 +321,7 @@ extern "C" __global__ void computeDistRest(
         const float eco_linear = eco_linears[index];
         float eco_value = eco_values[index]; // the actual ECO value for this restraint
         //const float co_value = co_values[index]; // the CO (contact order) value for this restraint
-        float co_value = (float) abs(residueIndices[index].y - residueIndices[index].x);
+        float co_value = 9999 //(float) abs(residueIndices[index].y - residueIndices[index].x);
         if (eco_value > co_value) { // we don't need to let the ECO be any larger than the CO
           eco_value = co_value;
           //eco_values[index] = co_value;
@@ -400,7 +400,7 @@ extern "C" __global__ void computeDistRest(
 
         // store energy into global buffer
         energies[globalIndex] = energy;
-        nonECOenergies[globalIndex] = nonECOenergy;
+        //nonECOenergies[globalIndex] = nonECOenergy;
     }
 }
 
@@ -1105,7 +1105,7 @@ extern "C" __global__ void applyDistRest(
                                 const int* __restrict__ globalIndices,
                                 const float3* __restrict__ restForces,
                                 const float* __restrict__ globalEnergies,
-                                const float* __restrict__ globalNonEcoEnergies,
+                                //const float* __restrict__ globalNonEcoEnergies,
                                 const float* __restrict__ globalActive,
                                 const int numDistRestraints) {
     int threadIndex = blockIdx.x * blockDim.x + threadIdx.x;

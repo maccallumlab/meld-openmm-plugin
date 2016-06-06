@@ -112,7 +112,7 @@ CudaCalcMeldForceKernel::CudaCalcMeldForceKernel(std::string name, const Platfor
     torsProfileRestGlobalIndices = NULL;
     torsProfileRestForces = NULL;
     restraintEnergies = NULL;
-    nonECOrestraintEnergies = NULL;
+    //nonECOrestraintEnergies = NULL;
     restraintActive = NULL;
     groupRestraintIndices = NULL;
     groupRestraintIndicesTemp = NULL;
@@ -180,7 +180,7 @@ CudaCalcMeldForceKernel::~CudaCalcMeldForceKernel() {
     delete torsProfileRestGlobalIndices;
     delete torsProfileRestForces;
     delete restraintEnergies;
-    delete nonECOrestraintEnergies;
+    //delete nonECOrestraintEnergies;
     delete restraintActive;
     delete groupRestraintIndices;
     delete groupRestraintIndicesTemp;
@@ -279,7 +279,7 @@ void CudaCalcMeldForceKernel::allocateMemory(const MeldForce& force) {
     }
 
     restraintEnergies         = CudaArray::create<float>  ( cu, numRestraints,     "restraintEnergies");
-    nonECOrestraintEnergies   = CudaArray::create<float>  ( cu, numRestraints,     "nonECOrestraintEnergies");
+    //nonECOrestraintEnergies   = CudaArray::create<float>  ( cu, numRestraints,     "nonECOrestraintEnergies");
     restraintActive           = CudaArray::create<float>  ( cu, numRestraints,     "restraintActive");
     groupRestraintIndices     = CudaArray::create<int>    ( cu, numRestraints,     "groupRestraintIndices");
     groupRestraintIndicesTemp = CudaArray::create<int>    ( cu, numRestraints,     "groupRestraintIndicesTemp");
@@ -1210,7 +1210,7 @@ double CudaCalcMeldForceKernel::execute(ContextImpl& context, bool includeForces
             //&distanceRestCOValues->getDevicePointer(),
             &distanceRestGlobalIndices->getDevicePointer(),
             &restraintEnergies->getDevicePointer(),
-            &nonECOrestraintEnergies->getDevicePointer(),
+            //&nonECOrestraintEnergies->getDevicePointer(),
             &distanceRestForces->getDevicePointer(),
             &numDistRestraints}; // this is getting the reference pointer for each of these arrays
         cu.executeKernel(computeDistRestKernel, distanceArgs, numDistRestraints);
@@ -1347,7 +1347,7 @@ double CudaCalcMeldForceKernel::execute(ContextImpl& context, bool includeForces
             &distanceRestGlobalIndices->getDevicePointer(),
             &distanceRestForces->getDevicePointer(),
             &restraintEnergies->getDevicePointer(),
-            &nonECOrestraintEnergies->getDevicePointer(),
+            //&nonECOrestraintEnergies->getDevicePointer(),
             &restraintActive->getDevicePointer(),
             &numDistRestraints};
         cu.executeKernel(applyDistRestKernel, applyDistRestArgs, numDistRestraints);
