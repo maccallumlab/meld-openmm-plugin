@@ -289,7 +289,7 @@ if (tx < num_nodes) {
 extern "C" __global__ void computeDistRest(
                             const real4* __restrict__ posq,             // positions and charges
                             const int2* __restrict__ atomIndices,       // pair of atom indices
-                            const int2* __restrict__ residueIndices,
+                            //const int2* __restrict__ residueIndices,
                             const float4* __restrict__ distanceBounds,  // r1, r2, r3, r4
                             const float* __restrict__ forceConstants,   // k
                             const int* __restrict__ doing_ecos,          // doing_eco
@@ -321,7 +321,7 @@ extern "C" __global__ void computeDistRest(
         const float eco_linear = eco_linears[index];
         float eco_value = eco_values[index]; // the actual ECO value for this restraint
         //const float co_value = co_values[index]; // the CO (contact order) value for this restraint
-        float co_value = (float) abs(residueIndices[index].y - residueIndices[index].x);
+        float co_value = 9999 //(float) abs(residueIndices[index].y - residueIndices[index].x);
         if (eco_value > co_value) { // we don't need to let the ECO be any larger than the CO
           eco_value = co_value;
           //eco_values[index] = co_value;
