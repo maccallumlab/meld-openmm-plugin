@@ -264,7 +264,7 @@ private:
      * Each array has size numRestraints
      */
     OpenMM::CudaArray* restraintEnergies;           // energy for each restraint
-    OpenMM::CudaArray* nonECOrestraintEnergies;     // energy for each restraint NOT scaled by ECO
+    //OpenMM::CudaArray* nonECOrestraintEnergies;     // energy for each restraint NOT scaled by ECO
     std::vector<float> h_restraintEnergies;
     std::vector<float> h_restraintNonEcoEnergies;
 

@@ -300,7 +300,7 @@ extern "C" __global__ void computeDistRest(
                             //float* __restrict__ co_values,          // the CO values (contact order)
                             int* __restrict__ indexToGlobal,            // array of indices into global arrays
                             float* __restrict__ energies,               // global array of restraint energies
-                            float* __restrict__ nonECOenergies,         // global array of non-ECO-modified restraint energies
+                            //float* __restrict__ nonECOenergies,         // global array of non-ECO-modified restraint energies
                             float3* __restrict__ forceBuffer,           // temporary buffer to hold the force
                             const int numRestraints) {
     for (int index=blockIdx.x*blockDim.x+threadIdx.x; index<numRestraints; index+=blockDim.x*gridDim.x) {
@@ -336,7 +336,7 @@ extern "C" __global__ void computeDistRest(
 
         // compute force and energy
         float energy = 0.0;
-        float nonECOenergy = 0.0;
+        //float nonECOenergy = 0.0;
         float dEdR = 0.0;
         float diff = 0.0;
         float diff2 = 0.0;
@@ -369,7 +369,7 @@ extern "C" __global__ void computeDistRest(
             dEdR = k * (r4 - r3);
         }
         
-        nonECOenergy = energy;
+        //nonECOenergy = energy;
         
         if ((doing_eco == true) && (eco_value > 0.0)) { // make sure we want to do eco and that the eco value is positive
           force_eco_multiple =  (eco_constant + eco_factor / eco_value);
@@ -400,7 +400,7 @@ extern "C" __global__ void computeDistRest(
 
         // store energy into global buffer
         energies[globalIndex] = energy;
-        nonECOenergies[globalIndex] = nonECOenergy;
+        //nonECOenergies[globalIndex] = nonECOenergy;
     }
 }
 
@@ -1105,7 +1105,7 @@ extern "C" __global__ void applyDistRest(
                                 const int* __restrict__ globalIndices,
                                 const float3* __restrict__ restForces,
                                 const float* __restrict__ globalEnergies,
-                                const float* __restrict__ globalNonEcoEnergies,
+                                //const float* __restrict__ globalNonEcoEnergies,
                                 const float* __restrict__ globalActive,
                                 const int numDistRestraints) {
     int threadIndex = blockIdx.x * blockDim.x + threadIdx.x;
