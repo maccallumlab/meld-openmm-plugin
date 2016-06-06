@@ -321,7 +321,7 @@ extern "C" __global__ void computeDistRest(
         const float eco_linear = eco_linears[index];
         float eco_value = eco_values[index]; // the actual ECO value for this restraint
         //const float co_value = co_values[index]; // the CO (contact order) value for this restraint
-        float co_value = 9999 //(float) abs(residueIndices[index].y - residueIndices[index].x);
+        float co_value = 9999; //(float) abs(residueIndices[index].y - residueIndices[index].x);
         if (eco_value > co_value) { // we don't need to let the ECO be any larger than the CO
           eco_value = co_value;
           //eco_values[index] = co_value;
