@@ -1199,7 +1199,7 @@ double CudaCalcMeldForceKernel::execute(ContextImpl& context, bool includeForces
         void* distanceArgs[] = {
             &cu.getPosq().getDevicePointer(),
             &distanceRestAtomIndices->getDevicePointer(),
-            &distanceRestResidueIndices->getDevicePointer(),
+            //&distanceRestResidueIndices->getDevicePointer(),
             &distanceRestRParams->getDevicePointer(),
             &distanceRestKParams->getDevicePointer(),
             &distanceRestDoingEco->getDevicePointer(), 

@@ -321,7 +321,7 @@ extern "C" __global__ void computeDistRest(
         const float eco_linear = eco_linears[index];
         float eco_value = eco_values[index]; // the actual ECO value for this restraint
         //const float co_value = co_values[index]; // the CO (contact order) value for this restraint
-        float co_value = 9999 //(float) abs(residueIndices[index].y - residueIndices[index].x);
+        float co_value = 9999; //(float) abs(residueIndices[index].y - residueIndices[index].x);
         if (eco_value > co_value) { // we don't need to let the ECO be any larger than the CO
           eco_value = co_value;
           //eco_values[index] = co_value;
@@ -336,7 +336,7 @@ extern "C" __global__ void computeDistRest(
 
         // compute force and energy
         float energy = 0.0;
-        float nonECOenergy = 0.0;
+        //float nonECOenergy = 0.0;
         float dEdR = 0.0;
         float diff = 0.0;
         float diff2 = 0.0;
@@ -369,7 +369,7 @@ extern "C" __global__ void computeDistRest(
             dEdR = k * (r4 - r3);
         }
         
-        nonECOenergy = energy;
+        //nonECOenergy = energy;
         
         if ((doing_eco == true) && (eco_value > 0.0)) { // make sure we want to do eco and that the eco value is positive
           force_eco_multiple =  (eco_constant + eco_factor / eco_value);
