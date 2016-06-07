@@ -1198,12 +1198,12 @@ double CudaCalcMeldForceKernel::execute(ContextImpl& context, bool includeForces
     if (numDistRestraints > 0) {
         calcEcoValues(); // calculate the graph that will be used in the ECO calcs
         
-        distanceRestEcoValues->download(h_distanceRestEcoValues);
-        cout << "ECO values per restraint (after): ";
-        for (counter = 0; counter < numDistRestraints; counter++) {
-          cout << h_distanceRestResidueIndices[counter].x << "-" << h_distanceRestResidueIndices[counter].y << ":" << h_distanceRestEcoValues[counter] << " ";
-        }
-        cout << "\n";
+        //distanceRestEcoValues->download(h_distanceRestEcoValues);
+        //cout << "ECO values per restraint (after): ";
+        //for (counter = 0; counter < numDistRestraints; counter++) {
+        //  cout << h_distanceRestResidueIndices[counter].x << "-" << h_distanceRestResidueIndices[counter].y << ":" << h_distanceRestEcoValues[counter] << " ";
+       // }
+        //cout << "\n";
         
         //testEverythingEco(); // comment out this line in the final production version
         void* distanceArgs[] = {
