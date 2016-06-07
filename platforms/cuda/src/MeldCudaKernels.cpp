@@ -507,25 +507,25 @@ void CudaCalcMeldForceKernel::setupDistanceRestraints(const MeldForce& force) {
         h_distanceRestGlobalIndices[i] = global_index;
         
     }
-    /*
-    cout << "alpha carbons: ";
+    
+    //cout << "alpha carbons: ";
     for (int i=0; i < numResidues; ++i) {
         h_alphaCarbons[i] = force.getAlphaCarbons()[i];
-        cout << h_alphaCarbons[i] << " ";
+        //cout << h_alphaCarbons[i] << " ";
     }
-    cout << "\n";
-    cout << "numDistRestrains: " << numDistRestraints << "\n"; 
-    cout << "Distance Restraint Sorted:";
+    //cout << "\n";
+    //cout << "numDistRestrains: " << numDistRestraints << "\n"; 
+    //cout << "Distance Restraint Sorted:";
     for (int i = 0; i < numDistRestraints; i++) {
       h_distRestSorted[i*3] = force.getDistRestSorted()[i*3];
       h_distRestSorted[i*3+1] = force.getDistRestSorted()[i*3+1];
       h_distRestSorted[i*3+2] = force.getDistRestSorted()[i*3+2];
-      cout << h_distRestSorted[i*3] << "-" << h_distRestSorted[i*3 + 1] << ":" << h_distRestSorted[i*3 + 2] << " ";
+      //cout << h_distRestSorted[i*3] << "-" << h_distRestSorted[i*3 + 1] << ":" << h_distRestSorted[i*3 + 2] << " ";
     }
-    cout << "\n";
+    //cout << "\n";
     
-    cout << "numResidues: " << numResidues << "\n"; 
-    */
+    //cout << "numResidues: " << numResidues << "\n"; 
+    
 }
 
 
@@ -1197,19 +1197,15 @@ double CudaCalcMeldForceKernel::execute(ContextImpl& context, bool includeForces
     int counter;
     if (numDistRestraints > 0) {
         calcEcoValues(); // calculate the graph that will be used in the ECO calcs
-        cout << "ECO values per restraint (before): ";
-        for (counter = 0; counter < numDistRestraints; counter++) {
-          cout << h_distanceRestResidueIndices[counter].x << "-" << h_distanceRestResidueIndices[counter].y << ":" << h_distanceRestEcoValues[counter] << " ";
-        }
-        cout << "\n";
+        
         distanceRestEcoValues->download(h_distanceRestEcoValues);
         cout << "ECO values per restraint (after): ";
         for (counter = 0; counter < numDistRestraints; counter++) {
           cout << h_distanceRestResidueIndices[counter].x << "-" << h_distanceRestResidueIndices[counter].y << ":" << h_distanceRestEcoValues[counter] << " ";
         }
         cout << "\n";
-        assert(1 == 0);
-        testEverythingEco(); // comment out this line in the final production version
+        
+        //testEverythingEco(); // comment out this line in the final production version
         void* distanceArgs[] = {
             &cu.getPosq().getDevicePointer(),
             &distanceRestAtomIndices->getDevicePointer(),
