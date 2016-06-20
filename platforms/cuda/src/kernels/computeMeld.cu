@@ -161,7 +161,7 @@ extern "C" __global__ void dijkstra_initialize(bool* __restrict__ unexplored,
   if (index < n_nodes) {
     unexplored[index] = true;
     frontier[index] = false;
-    distance[index] = LARGE;
+    distance[index] = abs(index - src); //LARGE;
     n_explored[index] = 0;
     if (index == src) {
       unexplored[index] = false;
@@ -201,6 +201,10 @@ extern "C" __global__ void dijkstra_settle_and_update(bool* __restrict__ unexplo
   int j;
   int edge_index;
   int head;
+  if (index < n_nodes) {
+    unexplored_old[index] = unexplored[index];
+    frontier_old[index] = frontier[index];
+  }
   //if (index < n_nodes) {
     n_explored[index] = 0;
     if (unexplored_old[index] == true) { // this node has been unexplored
@@ -251,16 +255,23 @@ extern "C" __global__ void dijkstra_log_reduce(int n_nodes,
 }
 
 extern "C" __global__ void assignRestEco(int src,
+                                         int numRestraints,
                                          int2* distanceRestResidueIndices,
                                          int* distance,
                                          float* eco_values
                                          )
 {
   // If a restraint has a certain "src" value, it will assign the proper ECO value to it
+
+  // NOTE: put a loop here to do 10 eco values at a time
+
   int index = blockIdx.x * blockDim.x + threadIdx.x;
-  int dest = distanceRestResidueIndices[index].y;
-  if (distanceRestResidueIndices[index].x == src) { // if this restraint has one end in the current src
-    eco_values[index] = (float)(1 * distance[dest]); // assign the eco value for this restraint from the distance array
+  //eco_values[index] = 777;
+  if (index < numRestraints) {
+    int dest = distanceRestResidueIndices[index].y;
+    if (distanceRestResidueIndices[index].x == src) { // if this restraint has one end in the current src
+      eco_values[index] = (float)(1 * distance[dest]); // assign the eco value for this restraint from the distance array
+    }
   }
 }
 
