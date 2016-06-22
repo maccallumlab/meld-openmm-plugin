@@ -112,6 +112,7 @@ std::vector<int> MeldForce::getDistRestSorted() const {
 
 int MeldForce::addDistanceRestraint(int particle1, int particle2, float r1, float r2,
                                     float r3, float r4, float force_constant, bool doing_eco, float eco_factor, float eco_constant, float eco_linear, int res_index1, int res_index2) {
+    /*
     cout << "doing_eco:" << doing_eco ;
     cout << " eco_factor:" << eco_factor;
     cout << " eco_constant: " << eco_constant;

@@ -64,6 +64,8 @@ private:
     float ecoCutoff;
     int numResidues;
     int INF;
+    int MAX_THREADS;
+    int MAX_ECO_DEPTH;
     long int timevar; // a convenient variable to keep track of time
     long int timecount; 
     int largestGroup;
@@ -132,6 +134,7 @@ private:
     std::vector<int> h_distanceRestGlobalIndices;
 
     OpenMM::CudaArray* distanceRestForces; // cache to hold force computations until the final application step
+    std::vector<float3> h_distanceRestForces; // by filling this with NaN's, we can catch overflow problems
 
     OpenMM::CudaArray* distanceRestContacts; // Integer array of contacts, of size numRestraints**2
 
@@ -140,8 +143,8 @@ private:
     OpenMM::CudaArray* alphaCarbons; // Indices of alpha carbons
     std::vector<int> h_alphaCarbons;
     
-    //OpenMM::CudaArray* alphaCarbonPosq;
-    //std::vector<float> h_alphaCarbonPosq; // atomic positions of alpha carbons
+    OpenMM::CudaArray* alphaCarbonPosq;
+    std::vector<float> h_alphaCarbonPosq; // atomic positions of alpha carbons
     
     std::vector<int> h_dijkstra_unexplored;
     std::vector<int> h_dijkstra_unexplored_old;
