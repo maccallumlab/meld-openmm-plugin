@@ -10,8 +10,8 @@ conda config --add channels omnia;
 conda install -yq conda-build jinja2 anaconda-client;
 
 # install cuda
-curl -O -s http://developer.download.nvidia.com/compute/cuda/7.5/Prod/network_installers/mac/x86_64/cuda_mac_installer_tk.tar.gz
-curl -O -s http://developer.download.nvidia.com/compute/cuda/7.5/Prod/network_installers/mac/x86_64/cuda_mac_installer_drv.tar.gz
+curl -O -s http://developer.download.nvidia.com/compute/cuda/${CUDA_VERSION}/Prod/network_installers/mac/x86_64/cuda_mac_installer_tk.tar.gz
+curl -O -s http://developer.download.nvidia.com/compute/cuda/${CUDA_VERSION}/Prod/network_installers/mac/x86_64/cuda_mac_installer_drv.tar.gz
 sudo tar -zxf cuda_mac_installer_tk.tar.gz -C /;
 sudo tar -zxf cuda_mac_installer_drv.tar.gz -C /;
 rm -f cuda_mac_installer_tk.tar.gz cuda_mac_installer_drv.tar.gz
@@ -23,9 +23,6 @@ MINOR=`echo $GIT_DESCRIBE | cut -f2 -d.`
 PATCH=`echo $GIT_DESCRIBE | cut -f3 -d.`
 POST=`echo $GIT_DESCRIBE | cut -f4 -d.`
 export VERSTRING=${MAJOR}.${MINOR}.${PATCH}.post${POST}
-
-pwd
-ls
 
 
 # build the meld conda package
